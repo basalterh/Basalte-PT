@@ -747,6 +747,22 @@ details[open] .month-arrow{transform:rotate(90deg);}
     <div id="ouvConstraintsSection" style="display:none">
       <div class="sl" style="color:var(--orange);margin-top:8px">🔑 Contraintes de rotation OUV</div>
 
+      <!-- Heures contractuelles / mois -->
+      <div style="padding:10px 12px;background:rgba(251,146,60,.07);border:1px solid rgba(251,146,60,.22);border-radius:var(--rs);margin-bottom:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end">
+          <div>
+            <div style="font-size:.6rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">H contrat / mois</div>
+            <input type="number" id="empOuvHMois" min="0" max="300" step="0.01" placeholder="ex : 69.33"
+              oninput="onEmpOuvHMoisChange()"
+              style="width:100%;background:var(--card);border:1px solid rgba(251,146,60,.4);border-radius:var(--rs);color:var(--text);font-family:inherit;font-size:.9rem;font-weight:700;padding:6px 9px;color:var(--orange)">
+          </div>
+          <div id="empOuvQuotaInfo" style="font-size:.68rem;color:var(--text3);line-height:1.5"></div>
+        </div>
+        <div style="font-size:.6rem;color:var(--text3);margin-top:6px;font-style:italic">
+          Contrat annualisé — l'équilibre se fait sur l'année, pas mois par mois.
+        </div>
+      </div>
+
       <!-- Nb ouvreurs par session -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div>
@@ -1594,9 +1610,7 @@ function openEmpMd(id){
   showOuvConstraintsIfNeeded();
   if(curSite==='OUV'){
     loadEmpOuvConstraints(emp||{});
-    // rafraîchir tableau si horaires changent
-    const hMois=emp&&emp.monthMins?emp.monthMins/60:0;
-    renderEmpOuvAnnualTable(hMois);
+    // Le tableau est rendu dans loadEmpOuvConstraints via onEmpOuvHMoisChange
     setTimeout(()=>{
       document.querySelectorAll('#eSC input[type="time"]').forEach(inp=>{
         inp.addEventListener('change',()=>{
@@ -5144,14 +5158,19 @@ function loadEmpOuvConstraints(emp){
   // 1 fois par mois
   const cbOnce=$('empOuvOnceMonth'), selOnce=$('empOuvOnceMonthDay');
   if(cbOnce){ cbOnce.checked=!!c.onceMonth; if(selOnce) selOnce.value=c.onceMonthDow!=null?c.onceMonthDow:4; }
-  // Tableau annualisé
-  const hMois = emp.monthMins ? emp.monthMins/60 : 0;
-  renderEmpOuvAnnualTable(hMois);
+  // H contrat / mois
+  const hm = $('empOuvHMois');
+  if(hm){
+    hm.value = c.hMois && c.hMois>0 ? c.hMois : '';
+    onEmpOuvHMoisChange();
+  }
 }
 
 /* ── Lire contraintes depuis la fiche ── */
 function readEmpOuvConstraints(){
+  const hMoisVal = parseFloat($('empOuvHMois')?.value||0)||0;
   return {
+    hMois: hMoisVal,
     nbSession: parseInt($('empOuvNbSession')?.value)||3,
     maxPerWeek: parseInt($('empOuvMaxPerWeek')?.value)||2,
     neverDay: !!$('empOuvNeverDay')?.checked,
@@ -5169,28 +5188,73 @@ function readEmpOuvConstraints(){
   };
 }
 
+/* ── Callback changement H/mois ── */
+function onEmpOuvHMoisChange(){
+  const hMois = parseFloat($('empOuvHMois')?.value||0)||0;
+  const info = $('empOuvQuotaInfo');
+  if(info){
+    if(hMois>0){
+      const sessAn = Math.round(hMois*12/8);
+      const hAn = (hMois*12).toFixed(2);
+      info.innerHTML =
+        '<span style="color:var(--orange);font-weight:700">'+hAn+'h/an</span><br>'+
+        '<span style="color:var(--cyan)">'+sessAn+' sessions/an</span><br>'+
+        '<span style="color:var(--text3)">('+hMois.toFixed(2)+'h × 12 ÷ 8h)</span>';
+    } else {
+      info.innerHTML='<span style="color:var(--text3)">Saisissez un montant</span>';
+    }
+  }
+  renderEmpOuvAnnualTable(hMois);
+}
+
 /* ── Tableau heures annualisées ── */
 function renderEmpOuvAnnualTable(hMois){
   const el=$('empOuvAnnualTable');
   if(!el) return;
   if(!hMois||hMois<=0){
-    el.innerHTML='<div style="color:var(--text3);padding:3px">Définissez les horaires pour voir le tableau annualisé.</div>';
+    el.innerHTML='<div style="color:var(--text3);padding:3px;font-size:.62rem">Saisissez les heures contractuelles pour voir le tableau annualisé.</div>';
     return;
   }
   const MOIS=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
-  const SESS=[13,12,13,13,13,13,14,13,13,13,13,13]; // sessions OUV par mois 2026
-  const sessParMois = SESS.map(n => +(n * hMois / (13*8)).toFixed(1));
-  let html=`<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;min-width:480px">
+  const SESS_OUV=[13,12,13,13,13,13,14,13,13,13,13,13];
+  // Sessions théoriques par mois proportionnellement au contrat annuel
+  const sessAn = Math.round(hMois*12/8);
+  // Distribuer les sessions sur l'année proportionnellement aux jours d'ouverture
+  const totalSess=SESS_OUV.reduce((a,b)=>a+b,0); // 156
+  const sessParMois=SESS_OUV.map(n=>+(n/totalSess*sessAn).toFixed(1));
+  const hParMois=sessParMois.map(s=>+(s*8).toFixed(1));
+  const ecartParMois=hParMois.map(h=>+(h-hMois).toFixed(1));
+
+  let html=`<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;min-width:520px">
     <tr style="background:rgba(251,146,60,.12)">
-      <td style="padding:3px 6px;font-weight:700;color:var(--orange);border:1px solid rgba(251,146,60,.2);white-space:nowrap;font-size:.6rem">Mois</td>`;
-  MOIS.forEach(m=>{ html+=`<td style="padding:3px 4px;text-align:center;font-weight:700;color:var(--text2);border:1px solid var(--border);font-size:.6rem">${m}</td>`; });
-  html+=`</tr><tr>
-    <td style="padding:3px 6px;font-weight:700;color:var(--text);border:1px solid var(--border);white-space:nowrap;font-size:.6rem">H/mois</td>`;
-  MOIS.forEach(()=>{ html+=`<td style="padding:3px 4px;text-align:center;color:var(--cyan);border:1px solid var(--border);font-size:.6rem">${hMois.toFixed(1)}h</td>`; });
-  html+=`</tr><tr>
-    <td style="padding:3px 6px;font-weight:700;color:var(--text);border:1px solid var(--border);white-space:nowrap;font-size:.6rem">Sessions</td>`;
-  sessParMois.forEach(s=>{ html+=`<td style="padding:3px 4px;text-align:center;color:var(--text2);border:1px solid var(--border);font-size:.6rem">${s}</td>`; });
-  html+=`</tr></table></div>`;
+      <td style="padding:3px 6px;font-weight:700;color:var(--orange);border:1px solid rgba(251,146,60,.2);white-space:nowrap;font-size:.58rem">Mois</td>`;
+  MOIS.forEach(m=>{ html+=`<td style="padding:3px 4px;text-align:center;font-weight:700;color:var(--text2);border:1px solid var(--border);font-size:.58rem">${m}</td>`; });
+  html+=`</tr>
+  <tr>
+    <td style="padding:3px 6px;font-weight:700;color:var(--text);border:1px solid var(--border);white-space:nowrap;font-size:.58rem">Sessions</td>`;
+  sessParMois.forEach(s=>{ html+=`<td style="padding:3px 4px;text-align:center;color:var(--cyan);border:1px solid var(--border);font-size:.58rem">${s}</td>`; });
+  html+=`</tr>
+  <tr>
+    <td style="padding:3px 6px;font-weight:700;color:var(--text);border:1px solid var(--border);white-space:nowrap;font-size:.58rem">H réelles</td>`;
+  hParMois.forEach(h=>{ html+=`<td style="padding:3px 4px;text-align:center;color:var(--text);border:1px solid var(--border);font-size:.58rem">${h}h</td>`; });
+  html+=`</tr>
+  <tr>
+    <td style="padding:3px 6px;font-weight:700;color:var(--text);border:1px solid var(--border);white-space:nowrap;font-size:.58rem">Contrat</td>`;
+  MOIS.forEach(()=>{ html+=`<td style="padding:3px 4px;text-align:center;color:var(--text3);border:1px solid var(--border);font-size:.58rem">${hMois.toFixed(1)}h</td>`; });
+  html+=`</tr>
+  <tr>
+    <td style="padding:3px 6px;font-weight:700;color:var(--text);border:1px solid var(--border);white-space:nowrap;font-size:.58rem">Écart</td>`;
+  ecartParMois.forEach(e=>{
+    const col=e>0?'#4ade80':e<0?'#f87171':'var(--text3)';
+    const str=e>0?'+'+e+'h':e+'h';
+    html+=`<td style="padding:3px 4px;text-align:center;color:${col};font-weight:700;border:1px solid var(--border);font-size:.58rem">${str}</td>`;
+  });
+  html+=`</tr>
+  </table></div>
+  <div style="font-size:.58rem;color:var(--text3);margin-top:4px">
+    Total annuel : <span style="color:var(--cyan);font-weight:700">${sessAn} sessions · ${(hMois*12).toFixed(0)}h</span>
+    · Cumul écarts : <span style="color:${Math.abs(ecartParMois.reduce((a,b)=>a+b,0))<0.5?'#4ade80':'#fbbf24'};font-weight:700">${ecartParMois.reduce((a,b)=>+(a+b).toFixed(1),0)}h</span>
+  </div>`;
   el.innerHTML=html;
 }
 
@@ -5314,8 +5378,8 @@ function runGreedyRotation(){
   // Construire la liste des agents avec leurs contraintes
   const agents = ouvEmps.map(emp=>{
     const c = emp.ouvConstraints||{};
-    const hMois = emp.monthMins ? emp.monthMins/60 : 0;
-    const sessionsAn = hMois>0 ? Math.round(hMois*12/8) : 0;
+    const hMoisContrat = c.hMois && c.hMois>0 ? c.hMois : (emp.monthMins ? emp.monthMins/60 : 0);
+    const sessionsAn = hMoisContrat>0 ? Math.round(hMoisContrat*12/8) : 0;
     return {
       id: emp._ouvAgentId||emp.id,
       nom: (emp.nom||'')+(emp.prenom?' '+emp.prenom:''),
