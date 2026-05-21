@@ -5480,18 +5480,18 @@ function importLPFile(input){
 
     // Vérifier que c'est bien un planning LP OUV (pas une sauvegarde générale)
     if(!data.version||!data.version.startsWith('BASALTE_PT_LP_ROTATION')){
-      showToast('❌ Ce fichier n'est pas un planning LP OUV. Pour restaurer une sauvegarde générale, utilisez 💾 Sauvegarder / Restaurer.');
+      showToast('Fichier incorrect — utilisez Sauvegarder/Restaurer pour les sauvegardes generales');
       return;
     }
     if(!data.planning){
-      showToast('❌ Fichier planning LP invalide (clé "planning" manquante)');
+      showToast('Fichier planning LP invalide');
       return;
     }
 
     // Récupérer les employés OUV pour faire la correspondance Nom → ID
     const ouvEmps=(ALLDB['OUV']&&ALLDB['OUV']['OUVERTURE']&&ALLDB['OUV']['OUVERTURE'].employees)||[];
     if(!ouvEmps.length){
-      showToast('❌ Aucun employé dans le site OUV. Ajoutez les ouvreurs d'abord.');
+      showToast('Aucun employe dans OUV — ajoutez les ouvreurs en premier');
       return;
     }
 
