@@ -109,11 +109,6 @@ body{
 
 /* ─── SIDEBAR ───────────────────────────────────────────── */
 .sidebar{width:240px;min-width:240px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:width .25s,min-width .25s,opacity .2s;overflow:hidden;z-index:50;}
-.sb-footer{padding:12px 14px;border-top:1px solid var(--border);margin-top:auto;flex-shrink:0;}
-.sb-footer-date{font-size:11px;color:var(--text2);margin-bottom:3px;}
-.sb-footer-status{font-size:11px;color:var(--cyan);margin-bottom:10px;}
-.sb-footer-logout{width:100%;background:transparent;border:1px solid var(--border);color:var(--text2);border-radius:8px;padding:7px;font-size:11px;cursor:pointer;font-family:inherit;transition:all .2s;}
-.sb-footer-logout:hover{color:#ff7f7f;border-color:#ff7f7f;}
 .sidebar.collapsed{width:0;min-width:0;opacity:0;}
 /* On mobile: sidebar overlays content */
 @media(max-width:768px){
@@ -341,16 +336,10 @@ details[open] .month-arrow{transform:rotate(90deg);}
     <div class="sb-actions">
       <div class="sb-actions-label">Actions</div>
       <button id="sbBtnWeekend" class="btn btn-ghost" style="width:100%;justify-content:center" onclick="openMdWeekend();if(window.innerWidth<=768)toggleSB()">📅 Rotation weekends</button>
+      <button id="sbBtnClearOuv" class="btn btn-ghost" style="width:100%;justify-content:center;display:none;color:#f87171;border-color:rgba(248,113,113,.3)" onclick="openMdClearOuv();if(window.innerWidth<=768)toggleSB()">🗑 Effacer le planning</button>
       <button id="sbBtnOuvAgents" class="btn btn-ghost" style="width:100%;justify-content:center;display:none;color:var(--orange);border-color:rgba(251,146,60,.3)" onclick="openMdOuvAgents();if(window.innerWidth<=768)toggleSB()">🔑 Gérer les ouvreurs</button>
       <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="if(curSite==='OUV'){exportOuvPDF();}else{openM('mdPrint');if(window.innerWidth<=768)toggleSB();}">🖨 Planning PDF</button>
       <button class="btn btn-cyan" style="width:100%;justify-content:center" onclick="openM('mdSave');if(window.innerWidth<=768)toggleSB()">💾 Sauvegarder / Restaurer</button>
-    </div>
-    <!-- Footer connexion -->
-    <div class="sb-footer">
-      <div class="sb-footer-date" id="sb-pt-date">—</div>
-      <div class="sb-footer-status" id="sb-pt-status">● Connexion…</div>
-      <div id="sb-pt-lastmodif" style="font-size:10px;color:var(--text2);margin-bottom:8px;line-height:1.4;">—</div>
-      <button class="sb-footer-logout" id="sb-pt-logout">Déconnexion</button>
     </div>
   </div>
 
@@ -394,8 +383,9 @@ details[open] .month-arrow{transform:rotate(90deg);}
         <button id="ouvRecapBtn" onclick="toggleOuvRecapView()" style="background:var(--card);border:1px solid var(--border);color:var(--purple);border-radius:var(--rs);height:26px;padding:0 9px;cursor:pointer;font-size:.65rem;font-weight:700;display:flex;align-items:center;gap:4px" onmouseover="this.style.borderColor='var(--purple)'" onmouseout="this.style.borderColor='var(--border)'">Récap ⊕</button>
         <!-- Alertes planning OUV -->
         <div style="margin-left:auto;display:flex;gap:5px;align-items:center">
-          <button id="ouvAlertCount" onclick="toggleOuvAlerts('count')" title="Jours avec nombre d'ouvreurs différent de 3" style="display:none;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.4);color:#f87171;border-radius:var(--rs);height:26px;padding:0 9px;cursor:pointer;font-size:.65rem;font-weight:700;gap:4px;align-items:center">⚠ <span id="ouvAlertCountN"></span></button>
-          <button id="ouvAlertFreq" onclick="toggleOuvAlerts('freq')" title="Ouvreurs ouvrant 3× ou plus dans la même semaine" style="display:none;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.4);color:#fbbf24;border-radius:var(--rs);height:26px;padding:0 9px;cursor:pointer;font-size:.65rem;font-weight:700;gap:4px;align-items:center">🚨 <span id="ouvAlertFreqN"></span></button>
+          <button id="ouvAlertCount" onclick="toggleOuvAlerts('count')" title="Sessions avec nombre d'ouvreurs incorrect" style="display:none;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.4);color:#f87171;border-radius:var(--rs);height:26px;padding:0 9px;cursor:pointer;font-size:.65rem;font-weight:700;gap:4px;align-items:center">⚠ <span id="ouvAlertCountN"></span></button>
+          <button id="ouvAlertFreq" onclick="toggleOuvAlerts('freq')" title="Ouvreurs avec 3 sessions ou plus dans la même semaine" style="display:none;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.4);color:#fbbf24;border-radius:var(--rs);height:26px;padding:0 9px;cursor:pointer;font-size:.65rem;font-weight:700;gap:4px;align-items:center">🚨 <span id="ouvAlertFreqN"></span></button>
+          <button id="ouvAlertNoSol" onclick="toggleOuvAlerts('nosol')" title="Sessions sans solution lors de la génération automatique" style="display:none;background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.4);color:var(--orange);border-radius:var(--rs);height:26px;padding:0 9px;cursor:pointer;font-size:.65rem;font-weight:700;gap:4px;align-items:center">🧮 <span id="ouvAlertNoSolN"></span></button>
         </div>
       </div>
       <!-- Légende + compteurs OUV -->
@@ -566,6 +556,51 @@ details[open] .month-arrow{transform:rotate(90deg);}
   </div>
 </div>
 
+<!-- MODAL: Effacer le planning OUV -->
+<div class="ov" id="mdClearOuv" onclick="if(event.target===this)closeM('mdClearOuv')">
+  <div class="md sm" onclick="event.stopPropagation()">
+    <div class="mt">🗑 Effacer le planning OUV</div>
+    <div style="font-size:.68rem;color:var(--text3);margin-bottom:14px;padding:8px 10px;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:var(--rs);line-height:1.5">
+      Seules les assignations sont supprimées. Les shifts récurrents et la configuration des ouvreurs restent intacts.
+    </div>
+    <div style="font-size:.6rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Période à effacer</div>
+    <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px">
+      <button type="button" id="clearOuvOptYear" onclick="setClearOuvMode('year')" style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:9px 11px;background:var(--card2);border:2px solid #f87171;border-radius:var(--rs);text-align:left;width:100%">
+        <div id="clearOuvDotYear" style="width:14px;height:14px;border-radius:50%;background:#f87171;flex-shrink:0"></div>
+        <div><div style="font-size:.76rem;font-weight:700;color:var(--text)">Toute l'année</div><div style="font-size:.62rem;color:var(--text3)">Efface toutes les assignations de l'année choisie</div></div>
+      </button>
+      <button type="button" id="clearOuvOptMonth" onclick="setClearOuvMode('month')" style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:9px 11px;background:var(--card2);border:2px solid var(--border);border-radius:var(--rs);text-align:left;width:100%">
+        <div id="clearOuvDotMonth" style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:transparent;flex-shrink:0"></div>
+        <div><div style="font-size:.76rem;font-weight:700;color:var(--text)">Le mois en cours</div><div style="font-size:.62rem;color:var(--text3)">Efface les assignations du mois affiché dans le planning</div></div>
+      </button>
+      <button type="button" id="clearOuvOptPeriod" onclick="setClearOuvMode('period')" style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:9px 11px;background:var(--card2);border:2px solid var(--border);border-radius:var(--rs);text-align:left;width:100%">
+        <div id="clearOuvDotPeriod" style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:transparent;flex-shrink:0"></div>
+        <div><div style="font-size:.76rem;font-weight:700;color:var(--text)">Période personnalisée</div><div style="font-size:.62rem;color:var(--text3)">Choisissez une date de début et de fin</div></div>
+      </button>
+    </div>
+    <div id="clearOuvYearSel" style="margin-bottom:10px">
+      <div style="font-size:.6rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Année</div>
+      <select id="clearOuvYear" onchange="updateClearOuvPreview()" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:inherit;font-size:.78rem;padding:5px 8px">
+        <option value="2024">2024</option>
+        <option value="2025">2025</option>
+        <option value="2026" selected>2026</option>
+        <option value="2027">2027</option>
+      </select>
+    </div>
+    <div id="clearOuvPeriodSel" style="display:none;margin-bottom:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><div style="font-size:.6rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Du</div><input type="date" id="clearOuvFrom" onchange="updateClearOuvPreview()" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:inherit;font-size:.78rem;padding:5px 8px"></div>
+        <div><div style="font-size:.6rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Au</div><input type="date" id="clearOuvTo" onchange="updateClearOuvPreview()" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:inherit;font-size:.78rem;padding:5px 8px"></div>
+      </div>
+    </div>
+    <div id="clearOuvPreview" style="font-size:.68rem;padding:7px 10px;background:var(--card2);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:12px;min-height:28px;color:var(--text3)">—</div>
+    <div class="ma">
+      <button class="btn btn-ghost" onclick="closeM('mdClearOuv')">Annuler</button>
+      <button class="btn" style="background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.35);font-weight:700" onclick="confirmClearOuv()">🗑 Effacer</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Config ouvreurs + rotation -->
 <div class="ov" id="mdOuvAgents">
   <div class="md lg" style="max-width:540px">
@@ -608,9 +643,34 @@ details[open] .month-arrow{transform:rotate(90deg);}
     <div id="ouvRotPreview" style="max-height:140px;overflow-y:auto;background:var(--card2);border:1px solid var(--border);border-radius:var(--rs);padding:7px;font-size:.68rem;color:var(--text3);margin-bottom:8px">Configurez la rotation pour voir l'aperçu.</div>
     <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-bottom:4px" onclick="previewOuvRotation()">👁 Prévisualiser</button>
 
+    <!-- Génération greedy -->
+    <div style="background:var(--card2);border:1px solid rgba(251,146,60,.3);border-radius:var(--rs);padding:10px 12px;margin-bottom:8px">
+      <div style="font-size:.7rem;font-weight:700;color:var(--orange);margin-bottom:3px">🧮 Génération automatique</div>
+      <div style="font-size:.6rem;color:var(--text3);margin-bottom:8px">Génère une rotation optimisée à partir des contraintes de chaque fiche employé OUV.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+        <div>
+          <div style="font-size:.56rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Année</div>
+          <select id="greedyYear" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:inherit;font-size:.74rem;padding:4px 7px">
+            <option value="2025">2025</option>
+            <option value="2026" selected>2026</option>
+            <option value="2027">2027</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:.56rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Mode</div>
+          <select id="greedyMode" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:inherit;font-size:.74rem;padding:4px 7px">
+            <option value="replace">Remplacer tout</option>
+            <option value="add">Compléter (garder existant)</option>
+          </select>
+        </div>
+      </div>
+      <div id="greedyResult" style="font-size:.62rem;min-height:16px;margin-bottom:6px"></div>
+      <button class="btn" style="width:100%;justify-content:center;background:rgba(251,146,60,.15);color:var(--orange);border:1px solid rgba(251,146,60,.4);font-weight:700" onclick="runGreedyRotation()">🧮 Générer la rotation</button>
+    </div>
+
     <div class="ma">
       <button class="btn btn-ghost" onclick="closeM('mdOuvAgents')">Annuler</button>
-      <button class="btn" style="background:rgba(251,146,60,.14);color:var(--orange);border:1px solid rgba(251,146,60,.3)" onclick="applyOuvRotation()">⚡ Appliquer la rotation</button>
+      <button class="btn" style="background:rgba(251,146,60,.14);color:var(--orange);border:1px solid rgba(251,146,60,.3)" onclick="applyOuvRotation()">↩ Rotation manuelle</button>
       <button class="btn btn-cyan" onclick="saveOuvAgents()">Enregistrer</button>
     </div>
   </div>
@@ -682,6 +742,89 @@ details[open] .month-arrow{transform:rotate(90deg);}
     <button class="asb" onclick="(curSite==='OUV'?addSROuv:addSR)('eSC','e')">+ Ajouter un shift</button>
     <div class="sl">Calcul automatique</div>
     <div class="ac"><div><div class="acv" id="eHS">0h</div><div class="acl">H / semaine</div></div><div><div class="acv" id="eHM">0h</div><div class="acl">H / mois</div></div></div>
+
+    <!-- ── Section OUV contraintes ── -->
+    <div id="ouvConstraintsSection" style="display:none">
+      <div class="sl" style="color:var(--orange);margin-top:8px">🔑 Contraintes de rotation OUV</div>
+
+      <!-- Nb ouvreurs par session -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <div style="font-size:.6rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Ouvreurs requis / session</div>
+          <select id="empOuvNbSession" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:inherit;font-size:.76rem;padding:5px 8px">
+            <option value="3" selected>3 ouvreurs</option>
+            <option value="2">2 ouvreurs</option>
+            <option value="1">1 ouvreur</option>
+            <option value="4">4 ouvreurs</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:.6rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Sessions max / semaine</div>
+          <select id="empOuvMaxPerWeek" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:inherit;font-size:.76rem;padding:5px 8px">
+            <option value="1">1 session</option>
+            <option value="2" selected>2 sessions</option>
+            <option value="3">3 sessions</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Jamais ce jour -->
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;margin-bottom:6px;padding:7px 9px;background:var(--card2);border:1px solid var(--border);border-radius:var(--rs)">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap">
+          <input type="checkbox" id="empOuvNeverDay" style="width:14px;height:14px;accent-color:var(--orange)">
+          <span style="font-size:.72rem;font-weight:600;color:var(--text)">Jamais ce jour</span>
+        </label>
+        <select id="empOuvNeverDaySel" style="background:var(--card);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:inherit;font-size:.74rem;padding:4px 7px">
+          <option value="0">Lundi (BE2)</option>
+          <option value="2">Mercredi (BE3)</option>
+          <option value="4">Vendredi (BE1)</option>
+        </select>
+      </div>
+
+      <!-- Tous ces jours -->
+      <div style="padding:7px 9px;background:var(--card2);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:6px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:6px">
+          <input type="checkbox" id="empOuvAllDays" style="width:14px;height:14px;accent-color:var(--orange)">
+          <span style="font-size:.72rem;font-weight:600;color:var(--text)">Obligatoire ces jours</span>
+        </label>
+        <div style="display:flex;gap:6px" id="empOuvAllDaysChk">
+          <label style="flex:1;display:flex;align-items:center;gap:5px;font-size:.68rem;color:var(--text2);cursor:pointer"><input type="checkbox" id="empOuvAllLun" style="accent-color:var(--orange)"> Lundi</label>
+          <label style="flex:1;display:flex;align-items:center;gap:5px;font-size:.68rem;color:var(--text2);cursor:pointer"><input type="checkbox" id="empOuvAllMer" style="accent-color:var(--orange)"> Mercredi</label>
+          <label style="flex:1;display:flex;align-items:center;gap:5px;font-size:.68rem;color:var(--text2);cursor:pointer"><input type="checkbox" id="empOuvAllVen" style="accent-color:var(--orange)"> Vendredi</label>
+        </div>
+      </div>
+
+      <!-- 1 session sur 2 -->
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;margin-bottom:6px;padding:7px 9px;background:var(--card2);border:1px solid var(--border);border-radius:var(--rs)">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap">
+          <input type="checkbox" id="empOuvAltWeek" style="width:14px;height:14px;accent-color:var(--orange)">
+          <span style="font-size:.72rem;font-weight:600;color:var(--text)">1 session sur 2</span>
+        </label>
+        <select id="empOuvAltWeekDay" style="background:var(--card);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:inherit;font-size:.74rem;padding:4px 7px">
+          <option value="0">Lundi (BE2)</option>
+          <option value="2">Mercredi (BE3)</option>
+          <option value="4">Vendredi (BE1)</option>
+        </select>
+      </div>
+
+      <!-- 1 fois par mois -->
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;margin-bottom:10px;padding:7px 9px;background:var(--card2);border:1px solid var(--border);border-radius:var(--rs)">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap">
+          <input type="checkbox" id="empOuvOnceMonth" style="width:14px;height:14px;accent-color:var(--orange)">
+          <span style="font-size:.72rem;font-weight:600;color:var(--text)">1 fois/mois le</span>
+        </label>
+        <select id="empOuvOnceMonthDay" style="background:var(--card);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:inherit;font-size:.74rem;padding:4px 7px">
+          <option value="0">Lundi (BE2)</option>
+          <option value="2">Mercredi (BE3)</option>
+          <option value="4">Vendredi (BE1)</option>
+        </select>
+      </div>
+
+      <!-- Heures annualisées -->
+      <div style="font-size:.6rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Heures annualisées — contrat mensuel</div>
+      <div id="empOuvAnnualTable" style="overflow-x:auto;margin-bottom:2px;font-size:.62rem"></div>
+    </div>
+
     <div class="ma">
       <button class="btn btn-ghost" onclick="closeM('mdEmp')">Annuler</button>
       <button id="delEmpBtn" class="btn" style="background:rgba(248,113,113,.14);color:var(--red);border:1px solid rgba(248,113,113,.3);display:none" onclick="delEmp()">Supprimer</button>
@@ -922,7 +1065,7 @@ function initAllDB(){
   return d;
 }
 
-const _ls={get:(k)=>{try{return localStorage.getItem(k);}catch(e){return null;}},set:(k,v)=>{try{localStorage.setItem(k,v);}catch(e){};if(window._fbReady&&window._fbDb&&k==='bev6'){window._fbDb.ref('pt_data').set(v).catch(e=>console.warn('FB',e));}}};
+const _ls={get:(k)=>{try{return localStorage.getItem(k);}catch(e){return null;}},set:(k,v)=>{try{localStorage.setItem(k,v);}catch(e){}}};
 let ALLDB=JSON.parse(_ls.get('bev6')||'null')||initAllDB();
 if(!ALLDB.poleLabels)ALLDB.poleLabels={...DEFAULT_POLE_LABELS};
 // Migration : ajouter le site OUV s'il n'existe pas encore
@@ -936,20 +1079,7 @@ let vd=new Date(),view='week',selId=null,sbOpen=false,editId=null;
 let shiftCtx=null;
 let asgSel=null;
 
-const save=()=>{
-  _ls.set('bev6',JSON.stringify(ALLDB));
-  if(window._fbReady&&window._fbDb){
-    window._fbDb.ref('pt_data').set(JSON.stringify(ALLDB)).catch(e=>console.warn('FB',e));
-    var now=new Date();
-    var _u=window._fbCurrentUser||'inconnu';
-    var jours=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-    var mois=['jan','fev','mar','avr','mai','juin','juil','aout','sep','oct','nov','dec'];
-    var label=jours[now.getDay()]+' '+now.getDate()+' '+mois[now.getMonth()]+' '+now.getFullYear()+' a '+String(now.getHours()).padStart(2,'0')+'h'+String(now.getMinutes()).padStart(2,'0');
-    window._fbDb.ref('pt_last_modif').set({user:_u,label:label}).catch(function(){});
-    var el=document.getElementById('sb-pt-lastmodif');
-    if(el) el.textContent='Modifie le '+label+' par '+_u;
-  }
-};
+const save=()=>{_ls.set('bev6',JSON.stringify(ALLDB));};
 const $=id=>document.getElementById(id);
 const inits=n=>n.split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2);
 
@@ -1244,6 +1374,8 @@ function updateLabel(){
   if(wkndBtn) wkndBtn.style.display=isOuv?'none':'';
   const ouvBtn=$('sbBtnOuvAgents');
   if(ouvBtn) ouvBtn.style.display=isOuv?'':'none';
+  const clearBtn=$('sbBtnClearOuv');
+  if(clearBtn) clearBtn.style.display=isOuv?'':'none';
   // Masquer les onglets Sem/Mois/Année/Récap sur OUV, les montrer sur BE
   document.querySelectorAll('.vtab:not(#vtabOuv)').forEach(t=>{
     t.style.display=isOuv?'none':'';
@@ -1458,6 +1590,23 @@ function openEmpMd(id){
   // update info on date change
   $('eD1').onchange=updateRecurrenceInfo;
   $('eRecurrence').onchange=toggleCustomDates;
+  // Contraintes OUV
+  showOuvConstraintsIfNeeded();
+  if(curSite==='OUV'){
+    loadEmpOuvConstraints(emp||{});
+    // rafraîchir tableau si horaires changent
+    const hMois=emp&&emp.monthMins?emp.monthMins/60:0;
+    renderEmpOuvAnnualTable(hMois);
+    setTimeout(()=>{
+      document.querySelectorAll('#eSC input[type="time"]').forEach(inp=>{
+        inp.addEventListener('change',()=>{
+          recalcM('e');
+          const txt=($('eHM').textContent||'0h').replace('h','');
+          renderEmpOuvAnnualTable(parseFloat(txt.replace(',','.'))||0);
+        });
+      });
+    },120);
+  }
 }
 
 function saveEmp(){
@@ -1465,6 +1614,7 @@ function saveEmp(){
   if(!p||!n){showToast('Prénom et nom requis');return;}
   const sh=getSR('eSC');const{wk,mo}=calcH(sh);
   const rec=$('eRecurrence').value;
+  const ouvC = curSite==='OUV' ? readEmpOuvConstraints() : null;
   const data={
     prenom:p,nom:n,
     poste:$('ePoste').value.trim(),
@@ -1472,7 +1622,8 @@ function saveEmp(){
     shiftRecurrence:rec,
     shiftStart:rec==='custom'?$('eSD1').value:'',
     shiftEnd:rec==='custom'?$('eSD2').value:'',
-    color:empPickedColor,shifts:sh,weekMins:wk,monthMins:mo
+    color:empPickedColor,shifts:sh,weekMins:wk,monthMins:mo,
+    ...(ouvC?{ouvConstraints:ouvC}:{})
   };
   if(editId){
     const emp=DB.employees.find(e=>e.id===editId);
@@ -4763,6 +4914,9 @@ function computeOuvAlerts(){
     });
   });
 
+  // Alertes "pas de solution greedy"
+  const noSolAlerts=(db.greedyAlerts&&db.greedyAlerts.noSolution)||[];
+
   // Mettre à jour les boutons
   const btnCount=$('ouvAlertCount'),btnFreq=$('ouvAlertFreq');
   if(btnCount){
@@ -4782,6 +4936,18 @@ function computeOuvAlerts(){
     }
   }
 
+  // Alertes "pas de solution greedy"
+  const db3=ouvDB();
+  const noSolList=(db3.greedyAlerts&&db3.greedyAlerts.noSolution)||[];
+  const btnNoSol=$('ouvAlertNoSol');
+  if(btnNoSol){
+    if(noSolList.length){
+      btnNoSol.style.display='flex';
+      $('ouvAlertNoSolN').textContent=`${noSolList.length} session${noSolList.length>1?'s':''}`;
+    } else {
+      btnNoSol.style.display='none';
+    }
+  }
   // Stocker pour affichage au clic
   window._ouvAlerts={count:countAlerts,freq:freqAlerts};
 }
@@ -4801,21 +4967,40 @@ function toggleOuvAlerts(mode){
   if(mode==='count'){
     const list=alerts.count;
     if(!list.length){content.innerHTML='<span style="color:var(--text3)">Aucune anomalie.</span>';return;}
-    content.innerHTML=`<div style="font-weight:700;color:#f87171;margin-bottom:6px">⚠ Jours avec nombre d'ouvreurs différent de 3</div>`+
+    const db2=ouvDB();
+    const nbReq=(db2.greedyAlerts&&db2.greedyAlerts.nbRequired)||3;
+    content.innerHTML=`<div style="font-weight:700;color:#f87171;margin-bottom:6px">⚠ Sessions avec un nombre d'ouvreurs différent de ${nbReq}</div>`+
       list.map(a=>`<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid rgba(37,48,82,.3)">
         <span style="font-size:.7rem;font-weight:700;color:var(--text2);min-width:110px">${a.label}</span>
         <span style="font-size:.65rem;padding:2px 8px;border-radius:10px;background:${a.color}20;color:${a.color};font-weight:700">${a.n} ouvreur${a.n>1?'s':''}</span>
       </div>`).join('');
-  } else {
+  } else if(mode==='freq'){
     const list=alerts.freq;
     if(!list.length){content.innerHTML='<span style="color:var(--text3)">Aucune anomalie.</span>';return;}
-    content.innerHTML=`<div style="font-weight:700;color:#fbbf24;margin-bottom:6px">🚨 Ouvreurs avec 3 ouvertures ou plus dans la même semaine</div>`+
+    content.innerHTML=`<div style="font-weight:700;color:#fbbf24;margin-bottom:6px">🚨 Ouvreurs avec 3 sessions ou plus dans la même semaine</div>`+
       list.map(a=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(37,48,82,.3)">
         <div style="width:8px;height:8px;border-radius:50%;background:${a.color};flex-shrink:0"></div>
         <span style="font-size:.7rem;font-weight:700;color:${a.color};min-width:100px">${a.nom}</span>
         <span style="font-size:.62rem;color:var(--text3)">${a.wk}</span>
         <span style="font-size:.65rem;padding:2px 8px;border-radius:10px;background:rgba(251,191,36,.15);color:#fbbf24;font-weight:700">${a.count}× — ${a.days.join(', ')}</span>
       </div>`).join('');
+  } else if(mode==='nosol'){
+    const db2=ouvDB();
+    const list=(db2.greedyAlerts&&db2.greedyAlerts.noSolution)||[];
+    if(!list.length){content.innerHTML='<span style="color:var(--text3)">Aucune session sans solution.</span>';return;}
+    const pad=n=>String(n).padStart(2,'0');
+    content.innerHTML=`<div style="font-weight:700;color:#fb923c;margin-bottom:6px">🧮 Sessions sans solution complète lors de la génération</div>`+
+      list.map(a=>{
+        const p=a.ds.split('-').map(Number);
+        const dt=new Date(p[0],p[1]-1,p[2]);
+        const DN=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+        const dow=dt.getDay()===0?6:dt.getDay()-1;
+        const label=`${DN[dow]} ${pad(p[2])}/${pad(p[1])}/${p[0]}`;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid rgba(37,48,82,.3)">
+          <span style="font-size:.7rem;font-weight:700;color:var(--text2);min-width:130px">${label}</span>
+          <span style="font-size:.65rem;padding:2px 8px;border-radius:10px;background:rgba(251,146,60,.15);color:var(--orange);font-weight:700">${a.found}/${a.needed} ouvreur${a.needed>1?'s':''}</span>
+        </div>`;
+      }).join('');
   }
 }
 
@@ -4916,6 +5101,370 @@ function resetOuvDayEdit(){
   if(!db.dayOverrides) db.dayOverrides={};
   delete db.dayOverrides[ouvDayEditCtx.ds];
   save();closeM('mdOuvDayEdit');renderOuvPage();showToast('Jour réinitialisé');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   OUV — CONTRAINTES PAR EMPLOYÉ + ALGORITHME GREEDY
+═══════════════════════════════════════════════════════════════════════ */
+
+// DOW map JS (getDay): 0=Dim,1=Lun,2=Mar,3=Mer,4=Jeu,5=Ven,6=Sam
+// DOW app (0=Lun..6=Dim) → getDay: Lun=1,Mer=3,Ven=5
+const DOW_APP_TO_GETDAY = {0:1, 2:3, 4:5}; // app dow → JS getDay
+const DOW_GETDAY_TO_APP = {1:0, 3:2, 5:4};
+
+/* ── Affichage section contraintes selon le site ── */
+function showOuvConstraintsIfNeeded(){
+  const sec = $('ouvConstraintsSection');
+  if(!sec) return;
+  sec.style.display = curSite==='OUV' ? '' : 'none';
+}
+
+/* ── Charger contraintes dans la fiche ── */
+function loadEmpOuvConstraints(emp){
+  const c = emp.ouvConstraints || {};
+  // Nb ouvreurs / session
+  const nb = $('empOuvNbSession');
+  if(nb) nb.value = c.nbSession||3;
+  // Max/semaine
+  const mx = $('empOuvMaxPerWeek');
+  if(mx) mx.value = c.maxPerWeek||2;
+  // Jamais ce jour
+  const cbN=$('empOuvNeverDay'), selN=$('empOuvNeverDaySel');
+  if(cbN){ cbN.checked=!!c.neverDay; if(selN) selN.value=c.neverDayDow!=null?c.neverDayDow:4; }
+  // Tous ces jours
+  const cbA=$('empOuvAllDays');
+  if(cbA){ cbA.checked=!!c.allDays; }
+  const cbLun=$('empOuvAllLun'),cbMer=$('empOuvAllMer'),cbVen=$('empOuvAllVen');
+  if(cbLun) cbLun.checked=!!(c.allDaysMap&&c.allDaysMap[0]);
+  if(cbMer) cbMer.checked=!!(c.allDaysMap&&c.allDaysMap[2]);
+  if(cbVen) cbVen.checked=!!(c.allDaysMap&&c.allDaysMap[4]);
+  // 1 session sur 2
+  const cbAlt=$('empOuvAltWeek'), selAlt=$('empOuvAltWeekDay');
+  if(cbAlt){ cbAlt.checked=!!c.altWeek; if(selAlt) selAlt.value=c.altWeekDow!=null?c.altWeekDow:2; }
+  // 1 fois par mois
+  const cbOnce=$('empOuvOnceMonth'), selOnce=$('empOuvOnceMonthDay');
+  if(cbOnce){ cbOnce.checked=!!c.onceMonth; if(selOnce) selOnce.value=c.onceMonthDow!=null?c.onceMonthDow:4; }
+  // Tableau annualisé
+  const hMois = emp.monthMins ? emp.monthMins/60 : 0;
+  renderEmpOuvAnnualTable(hMois);
+}
+
+/* ── Lire contraintes depuis la fiche ── */
+function readEmpOuvConstraints(){
+  return {
+    nbSession: parseInt($('empOuvNbSession')?.value)||3,
+    maxPerWeek: parseInt($('empOuvMaxPerWeek')?.value)||2,
+    neverDay: !!$('empOuvNeverDay')?.checked,
+    neverDayDow: parseInt($('empOuvNeverDaySel')?.value||4),
+    allDays: !!$('empOuvAllDays')?.checked,
+    allDaysMap: {
+      0: !!$('empOuvAllLun')?.checked,
+      2: !!$('empOuvAllMer')?.checked,
+      4: !!$('empOuvAllVen')?.checked,
+    },
+    altWeek: !!$('empOuvAltWeek')?.checked,
+    altWeekDow: parseInt($('empOuvAltWeekDay')?.value||2),
+    onceMonth: !!$('empOuvOnceMonth')?.checked,
+    onceMonthDow: parseInt($('empOuvOnceMonthDay')?.value||4),
+  };
+}
+
+/* ── Tableau heures annualisées ── */
+function renderEmpOuvAnnualTable(hMois){
+  const el=$('empOuvAnnualTable');
+  if(!el) return;
+  if(!hMois||hMois<=0){
+    el.innerHTML='<div style="color:var(--text3);padding:3px">Définissez les horaires pour voir le tableau annualisé.</div>';
+    return;
+  }
+  const MOIS=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  const SESS=[13,12,13,13,13,13,14,13,13,13,13,13]; // sessions OUV par mois 2026
+  const sessParMois = SESS.map(n => +(n * hMois / (13*8)).toFixed(1));
+  let html=`<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;min-width:480px">
+    <tr style="background:rgba(251,146,60,.12)">
+      <td style="padding:3px 6px;font-weight:700;color:var(--orange);border:1px solid rgba(251,146,60,.2);white-space:nowrap;font-size:.6rem">Mois</td>`;
+  MOIS.forEach(m=>{ html+=`<td style="padding:3px 4px;text-align:center;font-weight:700;color:var(--text2);border:1px solid var(--border);font-size:.6rem">${m}</td>`; });
+  html+=`</tr><tr>
+    <td style="padding:3px 6px;font-weight:700;color:var(--text);border:1px solid var(--border);white-space:nowrap;font-size:.6rem">H/mois</td>`;
+  MOIS.forEach(()=>{ html+=`<td style="padding:3px 4px;text-align:center;color:var(--cyan);border:1px solid var(--border);font-size:.6rem">${hMois.toFixed(1)}h</td>`; });
+  html+=`</tr><tr>
+    <td style="padding:3px 6px;font-weight:700;color:var(--text);border:1px solid var(--border);white-space:nowrap;font-size:.6rem">Sessions</td>`;
+  sessParMois.forEach(s=>{ html+=`<td style="padding:3px 4px;text-align:center;color:var(--text2);border:1px solid var(--border);font-size:.6rem">${s}</td>`; });
+  html+=`</tr></table></div>`;
+  el.innerHTML=html;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   OUV — EFFACER LE PLANNING
+═══════════════════════════════════════════════════════════════════════ */
+
+let _clearOuvMode = 'year';
+
+function openMdClearOuv(){
+  _clearOuvMode='year';
+  const yr=document.getElementById('clearOuvYear');
+  if(yr) yr.value=ouvYear||new Date().getFullYear();
+  const from=document.getElementById('clearOuvFrom');
+  const to=document.getElementById('clearOuvTo');
+  if(from&&to){
+    const y=ouvYear||new Date().getFullYear();
+    const m=ouvMonth!=null?ouvMonth:new Date().getMonth();
+    const dim=new Date(y,m+1,0).getDate();
+    from.value=y+'-'+String(m+1).padStart(2,'0')+'-01';
+    to.value=y+'-'+String(m+1).padStart(2,'0')+'-'+String(dim).padStart(2,'0');
+  }
+  setClearOuvMode('year');
+  openM('mdClearOuv');
+}
+
+function setClearOuvMode(mode){
+  _clearOuvMode=mode;
+  var modes=['year','month','period'];
+  var dotIds={year:'clearOuvDotYear',month:'clearOuvDotMonth',period:'clearOuvDotPeriod'};
+  var optIds={year:'clearOuvOptYear',month:'clearOuvOptMonth',period:'clearOuvOptPeriod'};
+  modes.forEach(function(m){
+    var active=m===mode;
+    var opt=document.getElementById(optIds[m]);
+    var dot=document.getElementById(dotIds[m]);
+    if(opt) opt.style.borderColor=active?'#f87171':'var(--border)';
+    if(dot){dot.style.background=active?'#f87171':'transparent';dot.style.borderColor=active?'#f87171':'var(--border)';}
+  });
+  var yrSel=document.getElementById('clearOuvYearSel');
+  var perSel=document.getElementById('clearOuvPeriodSel');
+  if(yrSel) yrSel.style.display=mode==='period'?'none':'';
+  if(perSel) perSel.style.display=mode==='period'?'':'none';
+  updateClearOuvPreview();
+}
+
+function updateClearOuvPreview(){
+  var el=document.getElementById('clearOuvPreview');
+  if(!el) return;
+  var db=ouvDB();
+  var range=getClearOuvRange();
+  var start=range.start, end=range.end;
+  if(!start||!end){el.textContent='Sélectionnez une période valide.';return;}
+  var count=0;
+  Object.keys(db.assignments||{}).forEach(function(ds){
+    if(ds>=start&&ds<=end) count+=(db.assignments[ds]||[]).filter(Boolean).length;
+  });
+  var pad=function(n){return String(n).padStart(2,'0');};
+  var fmt=function(ds){var p=ds.split('-');return pad(p[2])+'/'+pad(p[1])+'/'+p[0];};
+  el.innerHTML='<span style="color:var(--text)">Période : </span><span style="color:var(--cyan);font-weight:700">'+fmt(start)+' → '+fmt(end)+'</span> — '
+    +(count>0?'<span style="color:#f87171;font-weight:700">'+count+' assignation'+(count>1?'s':'')+' à supprimer</span>':'<span style="color:#4ade80">Aucune assignation sur cette période</span>');
+}
+
+function getClearOuvRange(){
+  var mode=_clearOuvMode;
+  var pad=function(n){return String(n).padStart(2,'0');};
+  if(mode==='year'){
+    var yr=parseInt((document.getElementById('clearOuvYear')||{value:ouvYear}).value)||ouvYear||new Date().getFullYear();
+    return{start:yr+'-01-01',end:yr+'-12-31'};
+  }
+  if(mode==='month'){
+    var y=ouvYear||new Date().getFullYear();
+    var m=ouvMonth!=null?ouvMonth:new Date().getMonth();
+    var dim=new Date(y,m+1,0).getDate();
+    return{start:y+'-'+pad(m+1)+'-01',end:y+'-'+pad(m+1)+'-'+pad(dim)};
+  }
+  if(mode==='period'){
+    return{start:(document.getElementById('clearOuvFrom')||{}).value||'',end:(document.getElementById('clearOuvTo')||{}).value||''};
+  }
+  return{start:'',end:''};
+}
+
+function confirmClearOuv(){
+  var range=getClearOuvRange();
+  var start=range.start, end=range.end;
+  if(!start||!end){showToast('Période invalide');return;}
+  var db=ouvDB();
+  var deleted=0;
+  Object.keys(db.assignments||{}).forEach(function(ds){
+    if(ds>=start&&ds<=end){deleted+=(db.assignments[ds]||[]).filter(Boolean).length;delete db.assignments[ds];}
+  });
+  if(_clearOuvMode==='year'&&db.greedyAlerts) db.greedyAlerts={};
+  save();
+  closeM('mdClearOuv');
+  renderOuvPage();
+  computeOuvAlerts();
+  var pad=function(n){return String(n).padStart(2,'0');};
+  var fmt=function(ds){var p=ds.split('-');return pad(p[2])+'/'+pad(p[1])+'/'+p[0];};
+  showToast('Planning effacé ('+fmt(start)+' → '+fmt(end)+') — '+deleted+' assignation'+(deleted>1?'s':'')+' supprimée'+(deleted>1?'s':'')+' ✓');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ALGORITHME GREEDY
+══════════════════════════════════════════════════════════════════ */
+function runGreedyRotation(){
+  const db = ouvDB();
+  const ouvEmps = (ALLDB['OUV']&&ALLDB['OUV']['OUVERTURE']&&ALLDB['OUV']['OUVERTURE'].employees)||[];
+  const yr = parseInt($('greedyYear')?.value || new Date().getFullYear());
+  const mode = $('greedyMode')?.value || 'replace';
+  const res = $('greedyResult');
+  if(res) res.innerHTML='<span style="color:var(--text3)">Calcul en cours…</span>';
+
+  if(!ouvEmps.length){
+    if(res) res.innerHTML='<span style="color:var(--red)">⚠ Aucun ouvreur dans le site OUV.</span>';
+    return;
+  }
+
+  // Nb ouvreurs requis par session (on prend la valeur globale du 1er agent ou 3 par défaut)
+  const firstC = (ouvEmps[0].ouvConstraints)||{};
+  const NB_REQUIRED = firstC.nbSession || 3;
+
+  // Construire la liste des agents avec leurs contraintes
+  const agents = ouvEmps.map(emp=>{
+    const c = emp.ouvConstraints||{};
+    const hMois = emp.monthMins ? emp.monthMins/60 : 0;
+    const sessionsAn = hMois>0 ? Math.round(hMois*12/8) : 0;
+    return {
+      id: emp._ouvAgentId||emp.id,
+      nom: (emp.nom||'')+(emp.prenom?' '+emp.prenom:''),
+      color: emp.color||'#fb923c',
+      // contraintes
+      maxPerWeek: c.maxPerWeek||2,
+      neverDay: c.neverDay ? c.neverDayDow : null,     // dow app (0=Lun,2=Mer,4=Ven) ou null
+      allDays: c.allDays ? (c.allDaysMap||{}) : null,  // {0:bool,2:bool,4:bool} ou null
+      altWeek: c.altWeek ? c.altWeekDow : null,         // dow ou null
+      onceMonth: c.onceMonth ? c.onceMonthDow : null,   // dow ou null
+      quota: sessionsAn,
+      done: 0,
+    };
+  });
+
+  // Construire sessions (L=dow0=BE2, Me=dow2=BE3, V=dow4=BE1)
+  const DOW_SITE={0:'BE2',2:'BE3',4:'BE1'};
+  const sessions=[];
+  for(let m=0;m<12;m++){
+    const dim=new Date(yr,m+1,0).getDate();
+    for(let d=1;d<=dim;d++){
+      const dt=new Date(yr,m,d);
+      const jd=dt.getDay(); // 0=Dim,1=Lun,...
+      const dow = {1:0,3:2,5:4}[jd]; // app dow
+      if(dow===undefined) continue;
+      const ds=`${yr}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const isoWeek=getWeekNumber(dt);
+      sessions.push({ds,dt,dow,site:DOW_SITE[dow],month:m,isoWeek});
+    }
+  }
+
+  // Compteurs dynamiques
+  const weekCount={};    // {agentId: {isoWeek: count}}
+  const monthDayCount={}; // {agentId: {month_dow: count}} pour onceMonth
+  agents.forEach(a=>{weekCount[a.id]={};monthDayCount[a.id]={};});
+
+  const assignsCopy = mode==='replace' ? {} : JSON.parse(JSON.stringify(db.assignments||{}));
+  const noSolutionDays=[];
+
+  // Pré-charger compteurs si mode compléter
+  if(mode==='add'){
+    Object.entries(db.assignments||{}).forEach(([ds,asgns])=>{
+      if(!asgns||!asgns.length) return;
+      const p=ds.split('-').map(Number);
+      const dt=new Date(p[0],p[1]-1,p[2]);
+      const isoWeek=getWeekNumber(dt);
+      const jd=dt.getDay();
+      const dow={1:0,3:2,5:4}[jd];
+      (asgns||[]).forEach(a=>{
+        if(!a||!a.agentId) return;
+        if(!weekCount[a.agentId]) weekCount[a.agentId]={};
+        weekCount[a.agentId][isoWeek]=(weekCount[a.agentId][isoWeek]||0)+1;
+        if(dow!==undefined){
+          const key=`${dt.getMonth()}_${dow}`;
+          if(!monthDayCount[a.agentId]) monthDayCount[a.agentId]={};
+          monthDayCount[a.agentId][key]=(monthDayCount[a.agentId][key]||0)+1;
+        }
+        const ag=agents.find(x=>x.id===a.agentId);
+        if(ag) ag.done++;
+      });
+    });
+  }
+
+  let totalAssigned=0;
+
+  for(const sess of sessions){
+    const {ds,dow,site,month,isoWeek}=sess;
+    const existingAsgns=(assignsCopy[ds]||[]).filter(Boolean);
+    if(mode==='add' && existingAsgns.length>=NB_REQUIRED) continue;
+    const needed = NB_REQUIRED - (mode==='add'?existingAsgns.length:0);
+    const alreadyIds=new Set(existingAsgns.map(a=>a.agentId));
+
+    // Agents éligibles pour cette session
+    const eligible=agents.filter(ag=>{
+      if(alreadyIds.has(ag.id)) return false;
+      // Jamais ce jour
+      if(ag.neverDay!==null && ag.neverDay===dow) return false;
+      // 1 session sur 2 : disponible seulement semaines impaires
+      if(ag.altWeek!==null && ag.altWeek===dow && isoWeek%2===0) return false;
+      // 1 fois par mois : déjà fait ce mois pour ce jour ?
+      if(ag.onceMonth!==null && ag.onceMonth===dow){
+        const key=`${month}_${dow}`;
+        const cnt=(monthDayCount[ag.id]||{})[key]||0;
+        if(cnt>=1) return false;
+      }
+      // Max / semaine (sauf si obligatoire ce jour)
+      const wkCnt=(weekCount[ag.id]||{})[isoWeek]||0;
+      const isMandatory=ag.allDays&&ag.allDays[dow];
+      if(!isMandatory && wkCnt>=ag.maxPerWeek) return false;
+      // Quota annuel
+      if(ag.quota>0 && ag.done>=ag.quota) return false;
+      return true;
+    });
+
+    // Trier : obligatoires en premier, puis par ratio quota restant
+    eligible.sort((a,b)=>{
+      const am=a.allDays&&a.allDays[dow];
+      const bm=b.allDays&&b.allDays[dow];
+      if(am&&!bm) return -1;
+      if(!am&&bm) return 1;
+      // onceMonth → priorité si pas encore fait ce mois
+      if(a.onceMonth===dow && b.onceMonth!==dow) return -1;
+      if(b.onceMonth===dow && a.onceMonth!==dow) return 1;
+      // ratio sessions restantes
+      const ra=a.quota>0?(a.quota-a.done)/a.quota:0.5;
+      const rb=b.quota>0?(b.quota-b.done)/b.quota:0.5;
+      return rb-ra;
+    });
+
+    const chosen=eligible.slice(0,needed);
+
+    if(!assignsCopy[ds]) assignsCopy[ds]=[];
+    chosen.forEach(ag=>{
+      assignsCopy[ds].push({agentId:ag.id,start:'06:30',end:'14:30',fromGreedy:true});
+      if(!weekCount[ag.id]) weekCount[ag.id]={};
+      weekCount[ag.id][isoWeek]=(weekCount[ag.id][isoWeek]||0)+1;
+      const key=`${month}_${dow}`;
+      if(!monthDayCount[ag.id]) monthDayCount[ag.id]={};
+      monthDayCount[ag.id][key]=(monthDayCount[ag.id][key]||0)+1;
+      ag.done++;
+      totalAssigned++;
+    });
+
+    if(chosen.length<needed){
+      noSolutionDays.push({ds,needed,found:chosen.length});
+    }
+  }
+
+  // Appliquer + alertes greedy
+  db.assignments=assignsCopy;
+  if(!db.greedyAlerts) db.greedyAlerts={};
+  db.greedyAlerts.noSolution=noSolutionDays;
+  db.greedyAlerts.year=yr;
+  save();
+  renderOuvPage();
+  computeOuvAlerts(); // rafraîchir les alertes existantes
+
+  // Résumé
+  const incomplete=sessions.filter(s=>(assignsCopy[s.ds]||[]).filter(Boolean).length<NB_REQUIRED).length;
+  const summary=agents.map(a=>`<span style="color:${a.color};font-weight:700">${a.nom.split(' ')[0]}</span>&nbsp;${a.done}`).join(' · ');
+  if(res){
+    res.innerHTML=
+      `<div style="font-weight:700;color:var(--cyan);margin-bottom:2px">✓ ${totalAssigned} postes assignés sur ${sessions.length} sessions</div>`+
+      (noSolutionDays.length
+        ?`<div style="color:var(--red);margin-bottom:2px">⚠ ${noSolutionDays.length} session(s) sans solution complète</div>`
+        :`<div style="color:#4ade80;margin-bottom:2px">Toutes les sessions complètes ✓</div>`)+
+      `<div style="color:var(--text3);font-size:.6rem">${summary}</div>`;
+  }
+  showToast(`Rotation générée — ${totalAssigned} postes ✓`+(noSolutionDays.length?` · ⚠ ${noSolutionDays.length} incomplet(s)`:''));
 }
 
 /* ─── MODAL : Gestion ouvreurs + rotation ────────── */
@@ -5824,193 +6373,5 @@ function openOuvRecapDrawer(){
   toggleOuvRecapView();
 }
 </script>
-
-<style>
-#fb-pt-overlay{position:fixed;inset:0;z-index:99999;background:#0a0e14;display:flex;align-items:center;justify-content:center;font-family:inherit;}
-#fb-pt-btn{width:100%;background:#00d2ca;color:#0a0e14;border:none;padding:14px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;}
-#fb-pt-btn:hover{background:#00e8e0;}
-#fb-pt-btn:disabled{opacity:0.5;cursor:default;}
-</style>
-<div id="fb-pt-overlay">
-  <div style="background:#121820;border:1px solid #1e3535;padding:48px 40px;width:380px;position:relative;box-shadow:0 40px 80px rgba(0,0,0,0.6);">
-    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#00d2ca,#00e8e0,#00d2ca);"></div>
-    <div style="font-size:10px;font-weight:700;letter-spacing:4px;color:#00d2ca;text-transform:uppercase;margin-bottom:6px;">Basalte Evolution</div>
-    <div style="font-size:26px;font-weight:700;color:#f0f4f8;margin-bottom:36px;">Planning <span style="color:#00d2ca;">PT</span></div>
-    <div style="margin-bottom:16px;">
-      <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#8696a8;margin-bottom:6px;">Email</div>
-      <input id="fb-pt-em" type="email" placeholder="prenom.nom@basalte.com" style="width:100%;background:#1a212e;border:1px solid #1e3535;color:#f0f4f8;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;">
-    </div>
-    <div style="margin-bottom:20px;">
-      <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#8696a8;margin-bottom:6px;">Mot de passe</div>
-      <input id="fb-pt-pw" type="password" placeholder="••••••••" style="width:100%;background:#1a212e;border:1px solid #1e3535;color:#f0f4f8;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;">
-    </div>
-    <button id="fb-pt-btn">Connexion</button>
-    <div id="fb-pt-err" style="color:#ff7f7f;font-size:12px;margin-top:12px;min-height:16px;"></div>
-    <div id="fb-pt-load" style="color:#8696a8;font-size:12px;margin-top:8px;text-align:center;display:none;">Chargement Firebase...</div>
-  </div>
-</div>
-<script>
-(function(){
-  var appEl=document.getElementById('app');
-  if(appEl){appEl.style.opacity='0';appEl.style.pointerEvents='none';}
-  window._fbReady=false;
-  window._fbDb=null;
-
-  function loadScript(src,cb){
-    var s=document.createElement('script');
-    s.src=src;
-    s.onload=cb;
-    s.onerror=function(){
-      document.getElementById('fb-pt-err').textContent='Erreur chargement Firebase. Vérifiez votre connexion.';
-      document.getElementById('fb-pt-btn').disabled=false;
-      document.getElementById('fb-pt-btn').textContent='Connexion';
-      document.getElementById('fb-pt-load').style.display='none';
-    };
-    document.head.appendChild(s);
-  }
-
-  function lancerApp2(email,pwd){
-    var auth=firebase.auth();
-    var db=firebase.database();
-    window._fbDb=db;
-    auth.signInWithEmailAndPassword(email,pwd).then(function(cred){
-      window._fbReady=true;
-      window._fbCurrentUser=(cred&&cred.user&&cred.user.email)?cred.user.email.split('@')[0]:'inconnu';
-      db.ref('pt_data').once('value').then(function(snap){
-        var d=snap.val();
-        if(d){try{var p=JSON.parse(d);if(p&&p.BE1){ALLDB=p;localStorage.setItem('bev6',d);}}catch(e){}}
-        db.ref('pt_data').on('value',function(snap){
-          if(!window._fbReady)return;
-          var d=snap.val();
-          if(d){try{var p=JSON.parse(d);if(p&&p.BE1){ALLDB=p;localStorage.setItem('bev6',d);}}catch(e){}}
-        });
-        db.ref('pt_last_modif').on('value',function(snap){
-          var lm=snap.val();
-          var el=document.getElementById('sb-pt-lastmodif');
-          if(el&&lm&&lm.label) el.textContent='Modifie le '+lm.label+' par '+lm.user;
-          else if(el) el.textContent='Aucune modification enregistree';
-        });
-        document.getElementById('fb-pt-overlay').style.display='none';
-        if(appEl){appEl.style.opacity='1';appEl.style.pointerEvents='auto';}
-        setTimeout(function(){
-          var s=document.getElementById('sb-pt-status');
-          if(s){s.textContent='● Firebase · '+window._fbCurrentUser;s.style.color='var(--cyan)';}
-          var d2=new Date();
-          var jours=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-          var mois=['jan','fev','mar','avr','mai','juin','juil','aout','sep','oct','nov','dec'];
-          var el2=document.getElementById('sb-pt-date');
-          if(el2) el2.textContent=jours[d2.getDay()]+' '+d2.getDate()+' '+mois[d2.getMonth()]+' '+d2.getFullYear();
-        },300);
-      });
-    }).catch(function(){
-      document.getElementById('fb-pt-err').textContent='Email ou mot de passe incorrect.';
-      document.getElementById('fb-pt-btn').disabled=false;
-      document.getElementById('fb-pt-btn').textContent='Connexion';
-      document.getElementById('fb-pt-load').style.display='none';
-    });
-  }
-
-  function initFirebase(email,pwd){
-    document.getElementById('fb-pt-load').style.display='block';
-    document.getElementById('fb-pt-err').textContent='';
-
-    if(typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length){lancerApp2(email,pwd);return;}
-    loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',function(){
-      loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js',function(){
-        loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js',function(){
-          var cfg={apiKey:"AIzaSyBrbtajVxAq8YFKtn5qVWZaea0h9LIfsDI",authDomain:"basalte-rh.firebaseapp.com",databaseURL:"https://basalte-rh-default-rtdb.europe-west1.firebasedatabase.app",projectId:"basalte-rh",storageBucket:"basalte-rh.firebasestorage.app",messagingSenderId:"301603409216",appId:"1:301603409216:web:c3bd43352f9fdbea0fbea5"};
-          if(!firebase.apps.length) firebase.initializeApp(cfg);
-          var auth=firebase.auth();
-          var db=firebase.database();
-          window._fbDb=db;
-
-          auth.signInWithEmailAndPassword(email,pwd).then(function(cred){
-            window._fbReady=true;
-            window._fbCurrentUser=(cred&&cred.user&&cred.user.email)?cred.user.email.split('@')[0]:'inconnu';
-            db.ref('pt_data').once('value').then(function(snap){
-              var d=snap.val();
-              if(d){try{var p=JSON.parse(d);if(p&&p.BE1){ALLDB=p;localStorage.setItem('bev6',d);}}catch(e){}}
-              db.ref('pt_data').on('value',function(snap){
-                if(!window._fbReady)return;
-                var d=snap.val();
-                if(d){try{var p=JSON.parse(d);if(p&&p.BE1){ALLDB=p;localStorage.setItem('bev6',d);}}catch(e){}}
-              });
-              // Bouton déconnexion dans sidebar
-              var sbLogout=document.getElementById('sb-pt-logout');
-              if(sbLogout){
-                sbLogout.onclick=function(){
-                  auth.signOut().then(function(){
-                    window._fbReady=false;
-                    if(appEl){appEl.style.opacity='0';appEl.style.pointerEvents='none';}
-                    document.getElementById('fb-pt-overlay').style.display='flex';
-                    document.getElementById('fb-pt-em').value='';
-                    document.getElementById('fb-pt-pw').value='';
-                    document.getElementById('fb-pt-err').textContent='';
-                    document.getElementById('fb-pt-btn').disabled=false;
-                    document.getElementById('fb-pt-btn').textContent='Connexion';
-                    document.getElementById('fb-pt-load').style.display='none';
-                    var s=document.getElementById('sb-pt-status');
-                    if(s){s.textContent='● En attente…';s.style.color='var(--text2)';}
-                  });
-                };
-              }
-              document.getElementById('fb-pt-overlay').style.display='none';
-              if(appEl){appEl.style.opacity='1';appEl.style.pointerEvents='auto';}
-              // Statut et date dans sidebar — après affichage
-              // Utilisateur déjà stocké au début du .then
-              // Écoute temps réel de la dernière modif
-              db.ref('pt_last_modif').on('value',function(snap){
-                var lm=snap.val();
-                var el=document.getElementById('sb-pt-lastmodif');
-                if(el&&lm&&lm.label) el.textContent='Modifie le '+lm.label+' par '+lm.user;
-                else if(el) el.textContent='Aucune modification enregistree';
-              });
-              // Mettre à jour footer après affichage complet
-              setTimeout(function(){
-                var s=document.getElementById('sb-pt-status');
-                if(s){s.textContent='● Firebase · '+window._fbCurrentUser;s.style.color='var(--cyan)';}
-                var d=new Date();
-                var jours=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-                var mois=['jan','fev','mar','avr','mai','juin','juil','aout','sep','oct','nov','dec'];
-                var el=document.getElementById('sb-pt-date');
-                if(el) el.textContent=jours[d.getDay()]+' '+d.getDate()+' '+mois[d.getMonth()]+' '+d.getFullYear();
-              },300);
-              setInterval(function(){
-                var d=new Date();
-                var jours=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-                var mois=['jan','fev','mar','avr','mai','juin','juil','aout','sep','oct','nov','dec'];
-                var dateEl=document.getElementById('sb-pt-date');
-                if(dateEl) dateEl.textContent=jours[d.getDay()]+' '+d.getDate()+' '+mois[d.getMonth()]+' '+d.getFullYear();
-              }, 60000);
-            }).catch(function(e){
-              console.error(e);
-              document.getElementById('fb-pt-overlay').style.display='none';
-              if(appEl){appEl.style.opacity='1';appEl.style.pointerEvents='auto';}
-            });
-          }).catch(function(){
-            document.getElementById('fb-pt-err').textContent='Email ou mot de passe incorrect.';
-            document.getElementById('fb-pt-btn').disabled=false;
-            document.getElementById('fb-pt-btn').textContent='Connexion';
-            document.getElementById('fb-pt-load').style.display='none';
-          });
-        });
-      });
-    });
-  }
-
-  document.getElementById('fb-pt-btn').addEventListener('click',function(){
-    var email=document.getElementById('fb-pt-em').value.trim();
-    var pwd=document.getElementById('fb-pt-pw').value;
-    var err=document.getElementById('fb-pt-err');
-    err.textContent='';
-    if(!email||!pwd){err.textContent='Remplissez tous les champs.';return;}
-    this.disabled=true;this.textContent='Connexion...';
-    initFirebase(email,pwd);
-  });
-  document.getElementById('fb-pt-pw').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('fb-pt-btn').click();});
-  document.getElementById('fb-pt-em').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('fb-pt-pw').focus();});
-})();
-</script>
-
 </body>
 </html>
