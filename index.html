@@ -336,6 +336,8 @@ details[open] .month-arrow{transform:rotate(90deg);}
     <div class="sb-actions">
       <div class="sb-actions-label">Actions</div>
       <button id="sbBtnWeekend" class="btn btn-ghost" style="width:100%;justify-content:center" onclick="openMdWeekend();if(window.innerWidth<=768)toggleSB()">📅 Rotation weekends</button>
+      <button id="sbBtnImportLP" class="btn btn-ghost" style="width:100%;justify-content:center;display:none;color:var(--cyan);border-color:rgba(45,255,212,.3)" onclick="triggerImportLP()">📥 Importer rotation LP</button>
+      <input type="file" id="inputImportLP" accept=".json" style="display:none" onchange="importLPFile(this)">
       <button id="sbBtnClearOuv" class="btn btn-ghost" style="width:100%;justify-content:center;display:none;color:#f87171;border-color:rgba(248,113,113,.3)" onclick="openMdClearOuv();if(window.innerWidth<=768)toggleSB()">🗑 Effacer le planning</button>
       <button id="sbBtnOuvAgents" class="btn btn-ghost" style="width:100%;justify-content:center;display:none;color:var(--orange);border-color:rgba(251,146,60,.3)" onclick="openMdOuvAgents();if(window.innerWidth<=768)toggleSB()">🔑 Gérer les ouvreurs</button>
       <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="if(curSite==='OUV'){exportOuvPDF();}else{openM('mdPrint');if(window.innerWidth<=768)toggleSB();}">🖨 Planning PDF</button>
@@ -560,8 +562,20 @@ details[open] .month-arrow{transform:rotate(90deg);}
 <div class="ov" id="mdClearOuv" onclick="if(event.target===this)closeM('mdClearOuv')">
   <div class="md sm" onclick="event.stopPropagation()">
     <div class="mt">🗑 Effacer le planning OUV</div>
-    <div style="font-size:.68rem;color:var(--text3);margin-bottom:14px;padding:8px 10px;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:var(--rs);line-height:1.5">
-      Seules les assignations sont supprimées. Les shifts récurrents et la configuration des ouvreurs restent intacts.
+    <!-- Niveau d'effacement -->
+    <div style="font-size:.6rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Que faut-il effacer ?</div>
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      <button type="button" id="clearLvlAssign" onclick="setClearOuvLevel('assign')"
+        style="flex:1;padding:8px 6px;border-radius:var(--rs);border:2px solid #f87171;background:rgba(248,113,113,.12);color:#f87171;font-size:.68rem;font-weight:700;cursor:pointer;line-height:1.4">
+        Assignations<br><span style="font-weight:400;opacity:.8">rotation générée</span>
+      </button>
+      <button type="button" id="clearLvlAll" onclick="setClearOuvLevel('all')"
+        style="flex:1;padding:8px 6px;border-radius:var(--rs);border:2px solid var(--border);background:var(--card2);color:var(--text2);font-size:.68rem;font-weight:700;cursor:pointer;line-height:1.4">
+        Tout effacer<br><span style="font-weight:400;opacity:.8">+ shifts récurrents</span>
+      </button>
+    </div>
+    <div id="clearLvlInfo" style="font-size:.62rem;color:var(--text3);margin-bottom:10px;padding:6px 9px;background:var(--card2);border-radius:var(--rs);border-left:2px solid #f87171">
+      Supprime uniquement les assignations de la rotation (manuelle ou générée automatiquement).
     </div>
     <div style="font-size:.6rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Période à effacer</div>
     <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px">
@@ -1392,6 +1406,8 @@ function updateLabel(){
   if(ouvBtn) ouvBtn.style.display=isOuv?'':'none';
   const clearBtn=$('sbBtnClearOuv');
   if(clearBtn) clearBtn.style.display=isOuv?'':'none';
+  const importLPBtn=$('sbBtnImportLP');
+  if(importLPBtn) importLPBtn.style.display=isOuv?'':'none';
   // Masquer les onglets Sem/Mois/Année/Récap sur OUV, les montrer sur BE
   document.querySelectorAll('.vtab:not(#vtabOuv)').forEach(t=>{
     t.style.display=isOuv?'none':'';
@@ -5266,6 +5282,8 @@ let _clearOuvMode = 'year';
 
 function openMdClearOuv(){
   _clearOuvMode='year';
+  _clearOuvLevel='assign';
+  setClearOuvLevel('assign');
   const yr=document.getElementById('clearOuvYear');
   if(yr) yr.value=ouvYear||new Date().getFullYear();
   const from=document.getElementById('clearOuvFrom');
@@ -5313,8 +5331,27 @@ function updateClearOuvPreview(){
   });
   var pad=function(n){return String(n).padStart(2,'0');};
   var fmt=function(ds){var p=ds.split('-');return pad(p[2])+'/'+pad(p[1])+'/'+p[0];};
-  el.innerHTML='<span style="color:var(--text)">Période : </span><span style="color:var(--cyan);font-weight:700">'+fmt(start)+' → '+fmt(end)+'</span> — '
-    +(count>0?'<span style="color:#f87171;font-weight:700">'+count+' assignation'+(count>1?'s':'')+' à supprimer</span>':'<span style="color:#4ade80">Aucune assignation sur cette période</span>');
+  // Compter aussi les shifts récurrents si niveau 'all'
+  var recurCount=0;
+  if(_clearOuvLevel==='all'){
+    var ouvEmpsP=(ALLDB['OUV']&&ALLDB['OUV']['OUVERTURE']&&ALLDB['OUV']['OUVERTURE'].employees)||[];
+    var openDowsP=new Set((db.dayDefaults||[]).map(function(d){return d.dow;}));
+    var curP=new Date(start.split('-')[0],start.split('-')[1]-1,start.split('-')[2]);
+    var endDP=new Date(end.split('-')[0],end.split('-')[1]-1,end.split('-')[2]);
+    while(curP<=endDP){
+      var dowP=curP.getDay()-1;if(dowP<0)dowP=6;
+      if(openDowsP.has(dowP)){
+        ouvEmpsP.forEach(function(emp){
+          var empDowP=curP.getDay()-1;if(empDowP<0)empDowP=6;
+          if((emp.shifts||[]).find(function(s){return shiftMatchesDate(s,curP,empDowP);})) recurCount++;
+        });
+      }
+      curP.setDate(curP.getDate()+1);
+    }
+  }
+  el.innerHTML='<span style="color:var(--text)">Période : </span><span style="color:var(--cyan);font-weight:700">'+fmt(start)+' → '+fmt(end)+'</span><br>'
+    +(count>0?'<span style="color:#f87171;font-weight:700">'+count+' assignation'+(count>1?'s':'')+' à supprimer</span>':'<span style="color:#4ade80">Aucune assignation</span>')
+    +(recurCount>0?' · <span style="color:#fbbf24;font-weight:700">'+recurCount+' shift'+(recurCount>1?'s':'')+' récurrent'+(recurCount>1?'s':'')+' à masquer</span>':'');
 }
 
 function getClearOuvRange(){
@@ -5336,15 +5373,77 @@ function getClearOuvRange(){
   return{start:'',end:''};
 }
 
+var _clearOuvLevel = 'assign'; // 'assign' ou 'all'
+
+function setClearOuvLevel(level){
+  _clearOuvLevel = level;
+  var btnA=document.getElementById('clearLvlAssign');
+  var btnAll=document.getElementById('clearLvlAll');
+  var info=document.getElementById('clearLvlInfo');
+  if(btnA){
+    btnA.style.borderColor=level==='assign'?'#f87171':'var(--border)';
+    btnA.style.background=level==='assign'?'rgba(248,113,113,.12)':'var(--card2)';
+    btnA.style.color=level==='assign'?'#f87171':'var(--text2)';
+  }
+  if(btnAll){
+    btnAll.style.borderColor=level==='all'?'#f87171':'var(--border)';
+    btnAll.style.background=level==='all'?'rgba(248,113,113,.12)':'var(--card2)';
+    btnAll.style.color=level==='all'?'#f87171':'var(--text2)';
+  }
+  if(info){
+    info.textContent=level==='all'
+      ?'Supprime les assignations ET masque les shifts récurrents des ouvreurs sur la période. Les fiches employés ne sont pas modifiées.'
+      :'Supprime uniquement les assignations de la rotation (manuelle ou générée automatiquement).';
+    info.style.borderLeftColor=level==='all'?'#fbbf24':'#f87171';
+  }
+  updateClearOuvPreview();
+}
+
 function confirmClearOuv(){
   var range=getClearOuvRange();
   var start=range.start, end=range.end;
   if(!start||!end){showToast('Période invalide');return;}
   var db=ouvDB();
   var deleted=0;
+
+  // Toujours effacer les assignations
   Object.keys(db.assignments||{}).forEach(function(ds){
-    if(ds>=start&&ds<=end){deleted+=(db.assignments[ds]||[]).filter(Boolean).length;delete db.assignments[ds];}
+    if(ds>=start&&ds<=end){
+      deleted+=(db.assignments[ds]||[]).filter(Boolean).length;
+      delete db.assignments[ds];
+    }
   });
+
+  // Si "tout effacer" : masquer aussi les shifts récurrents via exceptionalDeletes
+  var hiddenRecur=0;
+  if(_clearOuvLevel==='all'){
+    if(!db.exceptionalDeletes) db.exceptionalDeletes={};
+    var ouvEmps=(ALLDB['OUV']&&ALLDB['OUV']['OUVERTURE']&&ALLDB['OUV']['OUVERTURE'].employees)||[];
+    var openDows=new Set((db.dayDefaults||[]).map(function(d){return d.dow;}));
+    // Itérer sur chaque jour de la période
+    var cur=new Date(start.split('-')[0], start.split('-')[1]-1, start.split('-')[2]);
+    var endD=new Date(end.split('-')[0], end.split('-')[1]-1, end.split('-')[2]);
+    while(cur<=endD){
+      var dow=cur.getDay()-1; if(dow<0) dow=6;
+      if(openDows.has(dow)){
+        var ds=cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0')+'-'+String(cur.getDate()).padStart(2,'0');
+        ouvEmps.forEach(function(emp){
+          var empId=emp._ouvAgentId||emp.id;
+          var empDow=cur.getDay()-1; if(empDow<0) empDow=6;
+          var hasRecur=!!(emp.shifts||[]).find(function(s){return shiftMatchesDate(s,cur,empDow);});
+          if(hasRecur){
+            var key='excDel_'+ds+'_'+empId;
+            if(!db.exceptionalDeletes[key]){
+              db.exceptionalDeletes[key]=true;
+              hiddenRecur++;
+            }
+          }
+        });
+      }
+      cur.setDate(cur.getDate()+1);
+    }
+  }
+
   if(_clearOuvMode==='year'&&db.greedyAlerts) db.greedyAlerts={};
   save();
   closeM('mdClearOuv');
@@ -5352,7 +5451,107 @@ function confirmClearOuv(){
   computeOuvAlerts();
   var pad=function(n){return String(n).padStart(2,'0');};
   var fmt=function(ds){var p=ds.split('-');return pad(p[2])+'/'+pad(p[1])+'/'+p[0];};
-  showToast('Planning effacé ('+fmt(start)+' → '+fmt(end)+') — '+deleted+' assignation'+(deleted>1?'s':'')+' supprimée'+(deleted>1?'s':'')+' ✓');
+  var msg='Planning effacé ('+fmt(start)+' → '+fmt(end)+') — '+deleted+' assignation'+(deleted>1?'s':'')+' supprimée'+(deleted>1?'s':'');
+  if(hiddenRecur>0) msg+=' · '+hiddenRecur+' shift'+(hiddenRecur>1?'s':'')+' récurrent'+(hiddenRecur>1?'s':'')+' masqué'+(hiddenRecur>1?'s':'');
+  showToast(msg+' ✓');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   OUV — IMPORT ROTATION LP
+   Distinct de la sauvegarde générale (💾 Sauvegarder / Restaurer)
+   Ce bouton importe uniquement les assignations OUV depuis un fichier
+   planning_LP_XXXX.json généré par optimisation mathématique.
+═══════════════════════════════════════════════════════════════════════ */
+
+function triggerImportLP(){
+  // Déclenche uniquement l'input file dédié au planning LP OUV
+  const inp=document.getElementById('inputImportLP');
+  if(inp){ inp.value=''; inp.click(); }
+}
+
+function importLPFile(input){
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    let data;
+    try{ data=JSON.parse(e.target.result); }
+    catch(err){ showToast('Fichier JSON invalide'); return; }
+
+    // Vérifier que c'est bien un planning LP OUV (pas une sauvegarde générale)
+    if(!data.version||!data.version.startsWith('BASALTE_PT_LP_ROTATION')){
+      showToast('❌ Ce fichier n'est pas un planning LP OUV. Pour restaurer une sauvegarde générale, utilisez 💾 Sauvegarder / Restaurer.');
+      return;
+    }
+    if(!data.planning){
+      showToast('❌ Fichier planning LP invalide (clé "planning" manquante)');
+      return;
+    }
+
+    // Récupérer les employés OUV pour faire la correspondance Nom → ID
+    const ouvEmps=(ALLDB['OUV']&&ALLDB['OUV']['OUVERTURE']&&ALLDB['OUV']['OUVERTURE'].employees)||[];
+    if(!ouvEmps.length){
+      showToast('❌ Aucun employé dans le site OUV. Ajoutez les ouvreurs d'abord.');
+      return;
+    }
+
+    // Construire la map NOM → agentId
+    // Le nom dans le JSON est en majuscules (ex: "TAPON")
+    // On cherche une correspondance sur le nom de famille en majuscules
+    const nomToId={};
+    ouvEmps.forEach(function(emp){
+      const nomUpper=(emp.nom||'').toUpperCase().trim();
+      if(nomUpper) nomToId[nomUpper]=emp._ouvAgentId||emp.id;
+    });
+
+    // Années disponibles dans le fichier
+    const anneesDisponibles=Object.keys(data.planning);
+
+    // Compter ce qu'on va importer
+    const db=ouvDB();
+    if(!db.assignments) db.assignments={};
+    let imported=0, skippedAgents=new Set(), anneesImportees=[];
+
+    anneesDisponibles.forEach(function(yr){
+      const planAnnee=data.planning[yr];
+      let hasData=false;
+      Object.entries(planAnnee).forEach(function([ds, noms]){
+        const asgns=[];
+        noms.forEach(function(nom){
+          const agentId=nomToId[nom.toUpperCase()];
+          if(agentId){
+            asgns.push({agentId:agentId,start:'06:30',end:'14:30',fromLP:true});
+          } else {
+            skippedAgents.add(nom);
+          }
+        });
+        if(asgns.length>0){
+          db.assignments[ds]=asgns;
+          imported+=asgns.length;
+          hasData=true;
+        }
+      });
+      if(hasData) anneesImportees.push(yr);
+    });
+
+    save();
+    renderOuvPage();
+    computeOuvAlerts();
+
+    // Message de résultat
+    let msg='✓ Planning LP importé — '+imported+' assignation'+(imported>1?'s':'')+' sur '+anneesImportees.join(', ');
+    if(skippedAgents.size>0){
+      msg+=' · ⚠ Agents non trouvés : '+Array.from(skippedAgents).join(', ')+' (vérifiez que les noms correspondent)';
+    }
+    showToast(msg);
+
+    if(skippedAgents.size>0){
+      // Afficher un détail des agents non mappés
+      console.warn('Agents LP non trouvés dans OUV:',Array.from(skippedAgents));
+      console.info('Agents OUV disponibles:',Object.keys(nomToId));
+    }
+  };
+  reader.readAsText(file);
 }
 
 /* ══════════════════════════════════════════════════════════════════
