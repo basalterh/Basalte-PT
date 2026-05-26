@@ -1138,8 +1138,11 @@ let asgSel=null;
 const save=()=>{
   _ls.set('bev6',JSON.stringify(ALLDB));
   if(window._ptFbReady&&window._ptFbDb){
+    window._ptFbSaving=true;
     const cleanData=JSON.parse(JSON.stringify(ALLDB,function(k,v){return v===undefined?null:v;}));
-    window._ptFbDb.ref('pt_data').set(cleanData).catch(function(e){console.warn('Firebase save error:',e);});
+    window._ptFbDb.ref('pt_data').set(cleanData).catch(function(e){console.warn('Firebase save error:',e);}).finally(function(){
+      setTimeout(function(){window._ptFbSaving=false;},2000);
+    });
     const now=new Date();
     const _u=window._ptFbUser||'inconnu';
     const j=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
@@ -1656,7 +1659,7 @@ function openEmpMd(id){
   buildPalette('ePalette',empPickedColor,'e');
   $('eSC').innerHTML='';
   const addShiftFn=curSite==='OUV'?addSROuv:addSR;
-  (emp?emp.shifts:[]).forEach(s=>addShiftFn('eSC','e',s));
+  (emp?(emp.shifts||[]):[]).forEach(s=>addShiftFn('eSC','e',s));
   if(!emp)addShiftFn('eSC','e');
   recalcM('e');openM('mdEmp');
   // update info on date change
@@ -6721,6 +6724,7 @@ function openOuvRecapDrawer(){
       // Écoute temps réel
       db.ref('pt_data').on('value',function(snap){
         if(!window._ptFbReady)return;
+        if(window._ptFbSaving)return;
         const d=snap.val();
         if(d&&typeof d==='object'){
           ALLDB=d;
