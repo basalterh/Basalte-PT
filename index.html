@@ -6285,7 +6285,7 @@ function doExportOuvPDF(){
     const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
     const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
     const lm=8,rm=8;
-    const rowH=8;
+    const rowH=10;
 
     // Largeurs colonnes : JOUR | DATE | SITE | col×employé | excep
     const fixedW=16+24+18; // 58
@@ -6441,7 +6441,7 @@ function doExportOuvPDF(){
               const rLabel=`${repl.rNom||''} ${repl.rPrenom?repl.rPrenom.charAt(0)+'.':''}`.trim();
               doc.text(rLabel,rx+7,y+5,{maxWidth:cols[3+si]-9});
             } else {
-              // Shift normal — fond coloré
+              // Shift normal — fond coloré + nom complet
               const ec=hexToRgb(emp.color||'#888888');
               const lc=lightColor(ec.r,ec.g,ec.b,0.2);
               doc.setFillColor(lc.r,lc.g,lc.b);
@@ -6450,7 +6450,9 @@ function doExportOuvPDF(){
               doc.circle(rx+4,y+rowH/2,1.5,'F');
               doc.setTextColor(40,50,70);
               doc.setFontSize(5.5);doc.setFont('helvetica','bold');
-              doc.text(`${a.start||def.start}–${a.end||def.end}`,rx+7,y+5,{maxWidth:cols[3+si]-9});
+              doc.text(`${emp.nom||''}`,rx+7,y+4.5,{maxWidth:cols[3+si]-9});
+              doc.setFontSize(5);doc.setFont('helvetica','normal');
+              doc.text(`${emp.prenom||''}`,rx+7,y+8,{maxWidth:cols[3+si]-9});
             }
           }
           rx+=cols[3+si];
