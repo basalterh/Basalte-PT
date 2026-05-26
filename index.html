@@ -6443,7 +6443,8 @@ function doExportOuvPDF(){
       }
 
       y+=rowH;
-    });
+    }); // fin moDays.forEach
+  }); // fin daysByMonth.forEach
 
     // Pied de page dernière page du mois
     const lastMoGroup=daysByMonth[daysByMonth.length-1];
