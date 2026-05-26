@@ -6416,19 +6416,17 @@ function doExportOuvPDF(){
           doc.setDrawColor(180,190,210);doc.rect(rx,y,cols[3+si],rowH,'S');
           if(a){
             const ec=hexToRgb(emp.color||'#888888');
-            // Fond coloré clair (sans alpha — calculé manuellement)
             const lc=lightColor(ec.r,ec.g,ec.b,0.2);
             doc.setFillColor(lc.r,lc.g,lc.b);
             doc.rect(rx,y,cols[3+si],rowH,'F');
-            // Pastille + horaires
             doc.setFillColor(ec.r,ec.g,ec.b);
             doc.circle(rx+4,y+rowH/2,1.5,'F');
-          doc.setTextColor(40,50,70);
-          doc.setFontSize(5.5);doc.setFont('helvetica','bold');
-          doc.text(`${a.start||def.start}–${a.end||def.end}`,rx+7,y+5,{maxWidth:cols[3+si]-9});
-        }
-        rx+=cols[3+si];
-      });
+            doc.setTextColor(40,50,70);
+            doc.setFontSize(5.5);doc.setFont('helvetica','bold');
+            doc.text(`${a.start||def.start}–${a.end||def.end}`,rx+7,y+5,{maxWidth:cols[3+si]-9});
+          }
+          rx+=cols[3+si];
+        });
 
       // Colonne exceptionnel
       doc.setDrawColor(180,190,210);doc.rect(rx,y,excW,rowH,'S');
@@ -6448,8 +6446,8 @@ function doExportOuvPDF(){
     });
 
     // Pied de page dernière page du mois
-    const lastMo=daysByMonth[daysByMonth.length-1];
-    const lastMoLabel=(MFR[lastMo[0].date.getMonth()]+' '+lastMo[0].date.getFullYear()).toUpperCase();
+    const lastMoGroup=daysByMonth[daysByMonth.length-1];
+    const lastMoLabel=(MFR[lastMoGroup[0].date.getMonth()]+' '+lastMoGroup[0].date.getFullYear()).toUpperCase();
     drawPageFooter(lastMoLabel);
 
     const fname=`ouvertures_${sy}_${pad(sm)}_${pad(sd)}.pdf`;
