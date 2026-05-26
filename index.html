@@ -308,6 +308,27 @@ details[open] .month-arrow{transform:rotate(90deg);}
 
 </div>
 
+<!-- OVERLAY LOGIN FIREBASE -->
+<div id="fb-overlay" style="display:flex;position:fixed;inset:0;z-index:9999;background:#0e1320;align-items:center;justify-content:center;">
+  <div style="background:#141c2e;border:1px solid #2d3748;border-radius:16px;padding:36px 32px;width:340px;max-width:90vw;box-shadow:0 8px 40px rgba(0,0,0,.6);">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:28px;margin-bottom:8px;">📅</div>
+      <div style="font-size:18px;font-weight:700;color:#e2e8f0;">Basalte PT</div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">Planning & Remplacements</div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b;display:block;margin-bottom:6px;">Email</label>
+      <input id="fb-em" type="email" placeholder="email@basalte.fr" style="width:100%;box-sizing:border-box;background:#0e1320;border:1px solid #2d3748;border-radius:8px;padding:10px 12px;color:#e2e8f0;font-size:14px;font-family:inherit;outline:none;">
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b;display:block;margin-bottom:6px;">Mot de passe</label>
+      <input id="fb-pw" type="password" placeholder="••••••••" style="width:100%;box-sizing:border-box;background:#0e1320;border:1px solid #2d3748;border-radius:8px;padding:10px 12px;color:#e2e8f0;font-size:14px;font-family:inherit;outline:none;">
+    </div>
+    <div id="fb-err" style="color:#f87171;font-size:12px;margin-bottom:12px;min-height:16px;"></div>
+    <button id="fb-btn-conn" style="width:100%;background:#2dffd4;color:#0e1320;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Connexion</button>
+  </div>
+</div>
+
 <div class="body-wrap">
   <!-- SIDEBAR -->
   <div class="sidebar" id="SB">
@@ -342,6 +363,11 @@ details[open] .month-arrow{transform:rotate(90deg);}
       <button id="sbBtnOuvAgents" class="btn btn-ghost" style="width:100%;justify-content:center;display:none;color:var(--orange);border-color:rgba(251,146,60,.3)" onclick="openMdOuvAgents();if(window.innerWidth<=768)toggleSB()">🔑 Gérer les ouvreurs</button>
       <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="if(curSite==='OUV'){exportOuvPDF();}else{openM('mdPrint');if(window.innerWidth<=768)toggleSB();}">🖨 Planning PDF</button>
       <button class="btn btn-cyan" style="width:100%;justify-content:center" onclick="openM('mdSave');if(window.innerWidth<=768)toggleSB()">💾 Sauvegarder / Restaurer</button>
+    </div>
+    <!-- Footer statut Firebase -->
+    <div id="sb-footer-fb" style="padding:10px 12px;border-top:1px solid #1e2d4a;margin-top:auto;flex-shrink:0;">
+      <p id="pt-fb-status" style="color:#2dffd4;font-size:10px;margin:0;">● Local · Hors-ligne</p>
+      <p id="pt-last-modif" style="font-size:10px;color:#64748b;margin:3px 0 0;line-height:1.4;">—</p>
     </div>
   </div>
 
@@ -1109,7 +1135,21 @@ let vd=new Date(),view='week',selId=null,sbOpen=false,editId=null;
 let shiftCtx=null;
 let asgSel=null;
 
-const save=()=>{_ls.set('bev6',JSON.stringify(ALLDB));};
+const save=()=>{
+  _ls.set('bev6',JSON.stringify(ALLDB));
+  if(window._ptFbReady&&window._ptFbDb){
+    const cleanData=JSON.parse(JSON.stringify(ALLDB,function(k,v){return v===undefined?null:v;}));
+    window._ptFbDb.ref('pt_data').set(cleanData).catch(function(e){console.warn('Firebase save error:',e);});
+    const now=new Date();
+    const _u=window._ptFbUser||'inconnu';
+    const j=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+    const m=['jan','fev','mar','avr','mai','juin','juil','aout','sep','oct','nov','dec'];
+    const label=j[now.getDay()]+' '+now.getDate()+' '+m[now.getMonth()]+' '+now.getFullYear()+' a '+String(now.getHours()).padStart(2,'0')+'h'+String(now.getMinutes()).padStart(2,'0');
+    window._ptFbDb.ref('pt_last_modif').set({user:_u,label:label}).catch(function(){});
+    const el=document.getElementById('pt-last-modif');
+    if(el) el.textContent='Modifié le '+label+' par '+_u;
+  }
+};
 const $=id=>document.getElementById(id);
 const inits=n=>n.split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2);
 
@@ -6635,6 +6675,132 @@ function renderOuvRecapFull(){
 function openOuvRecapDrawer(){
   toggleOuvRecapView();
 }
+</script>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+(function(){
+  window._ptFbReady=false;
+  window._ptFbDb=null;
+  window._ptFbUser=null;
+
+  const cfg={
+    apiKey:"AIzaSyBrbtajVxAq8YFKtn5qVWZaea0h9LIfsDI",
+    authDomain:"basalte-rh.firebaseapp.com",
+    databaseURL:"https://basalte-rh-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId:"basalte-rh",
+    storageBucket:"basalte-rh.firebasestorage.app",
+    messagingSenderId:"301603409216",
+    appId:"1:301603409216:web:c3bd43352f9fdbea0fbea5"
+  };
+
+  // Initialiser avec un nom d'app distinct pour éviter conflit si RH ouvert en même temps
+  const app=firebase.initializeApp(cfg,'basalte-pt');
+  const auth=firebase.auth(app);
+  const db=firebase.database(app);
+  window._ptFbDb=db;
+
+  const appEl=document.getElementById('app')||document.querySelector('.body-wrap');
+  if(appEl){appEl.style.opacity='0';appEl.style.pointerEvents='none';}
+
+  function lancerApp(user){
+    window._ptFbReady=true;
+    window._ptFbUser=user&&user.email?user.email.split('@')[0]:'inconnu';
+
+    db.ref('pt_data').once('value').then(function(snap){
+      const d=snap.val();
+      if(d&&typeof d==='object'){
+        ALLDB=d;
+        _ls.set('bev6',JSON.stringify(ALLDB));
+      } else {
+        try{const s=_ls.get('bev6');if(s)ALLDB=JSON.parse(s);}catch(e){}
+      }
+      // Écoute temps réel
+      db.ref('pt_data').on('value',function(snap){
+        if(!window._ptFbReady)return;
+        const d=snap.val();
+        if(d&&typeof d==='object'){
+          ALLDB=d;
+          _ls.set('bev6',JSON.stringify(ALLDB));
+          // Re-render si fonction disponible
+          if(typeof renderAll==='function') renderAll();
+          else if(typeof renderEmp==='function') renderEmp();
+        }
+      });
+
+      // Écoute dernière modification
+      db.ref('pt_last_modif').on('value',function(snap){
+        const lm=snap.val();
+        const el=document.getElementById('pt-last-modif');
+        if(el&&lm&&lm.label) el.textContent='Modifié le '+lm.label+' par '+lm.user;
+        else if(el) el.textContent='Aucune modification enregistrée';
+      });
+
+      // Statut
+      const fpStatus=document.getElementById('pt-fb-status');
+      if(fpStatus){fpStatus.style.color='#2dffd4';fpStatus.textContent='● Firebase · '+window._ptFbUser;}
+
+      // Bouton déconnexion
+      const footer=document.getElementById('sb-footer-fb');
+      if(footer&&!document.getElementById('pt-logout-btn')){
+        const btn=document.createElement('button');
+        btn.id='pt-logout-btn';
+        btn.textContent='Déconnexion';
+        btn.style.cssText='width:100%;margin-top:8px;background:transparent;border:1px solid #2d3748;color:#64748b;border-radius:8px;padding:7px;font-size:11px;cursor:pointer;font-family:inherit;';
+        btn.onmouseover=function(){this.style.color='#f87171';this.style.borderColor='#f87171';};
+        btn.onmouseout=function(){this.style.color='#64748b';this.style.borderColor='#2d3748';};
+        btn.onclick=function(){
+          auth.signOut().then(function(){
+            window._ptFbReady=false;
+            window._ptFbUser=null;
+            if(appEl){appEl.style.opacity='0';appEl.style.pointerEvents='none';}
+            document.getElementById('fb-overlay').style.display='flex';
+            document.getElementById('fb-em').value='';
+            document.getElementById('fb-pw').value='';
+            document.getElementById('fb-err').textContent='';
+            document.getElementById('fb-btn-conn').disabled=false;
+            document.getElementById('fb-btn-conn').textContent='Connexion';
+            const fpS=document.getElementById('pt-fb-status');
+            if(fpS){fpS.textContent='● Local · Hors-ligne';fpS.style.color='#2dffd4';}
+            const fpM=document.getElementById('pt-last-modif');
+            if(fpM) fpM.textContent='—';
+          });
+        };
+        footer.appendChild(btn);
+      }
+
+      document.getElementById('fb-overlay').style.display='none';
+      if(appEl){appEl.style.opacity='1';appEl.style.pointerEvents='auto';}
+    }).catch(function(e){
+      console.error('Firebase load error:',e);
+      try{const s=_ls.get('bev6');if(s)ALLDB=JSON.parse(s);}catch(ex){}
+      document.getElementById('fb-overlay').style.display='none';
+      if(appEl){appEl.style.opacity='1';appEl.style.pointerEvents='auto';}
+    });
+  }
+
+  document.getElementById('fb-btn-conn').addEventListener('click',function(){
+    const email=document.getElementById('fb-em').value.trim();
+    const pwd=document.getElementById('fb-pw').value;
+    const err=document.getElementById('fb-err');
+    err.textContent='';
+    if(!email||!pwd){err.textContent='Remplissez tous les champs.';return;}
+    this.disabled=true;this.textContent='Connexion...';
+    auth.signInWithEmailAndPassword(email,pwd).then(function(cred){
+      lancerApp(cred.user);
+    }).catch(function(){
+      document.getElementById('fb-err').textContent='Email ou mot de passe incorrect.';
+      document.getElementById('fb-btn-conn').disabled=false;
+      document.getElementById('fb-btn-conn').textContent='Connexion';
+    });
+  });
+
+  document.getElementById('fb-pw').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('fb-btn-conn').click();});
+  document.getElementById('fb-em').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('fb-pw').focus();});
+})();
 </script>
 </body>
 </html>
