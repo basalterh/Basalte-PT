@@ -6725,9 +6725,18 @@ function openOuvRecapDrawer(){
         if(d&&typeof d==='object'){
           ALLDB=d;
           _ls.set('bev6',JSON.stringify(ALLDB));
-          // Re-render si fonction disponible
-          if(typeof renderAll==='function') renderAll();
-          else if(typeof renderEmp==='function') renderEmp();
+          // Rafraîchir DB et le rendu complet
+          if(!ALLDB[curSite]) ALLDB[curSite]={};
+          if(!ALLDB[curSite][curPole]) ALLDB[curSite][curPole]=emptyPole();
+          DB=ALLDB[curSite][curPole];
+          try{
+            renderPoleBar();
+            updateLabel();
+            renderSB();
+            updatePlanBar();
+            renderPlan();
+            renderRecap();
+          }catch(e){console.warn('render error:',e);}
         }
       });
 
