@@ -6287,21 +6287,29 @@ function doExportOuvPDF(){
     const excW=20;
     const cols=[16,32,18,...Array(nEmp).fill(empColW),excW];
 
+    // Helper : mélange couleur avec blanc pour simuler alpha
+    function lightColor(r,g,b,alpha){
+      return {r:Math.round(r*alpha+255*(1-alpha)),g:Math.round(g*alpha+255*(1-alpha)),b:Math.round(b*alpha+255*(1-alpha))};
+    }
+
     let y=0;
-    let pagesAdded=0;
-    let lastMo=-1;
+    let currentMoYear='';
 
-    function drawHeader(){
+    function drawPageHeader(moLabel){
       // En-tête document — fond sombre sobre
-      doc.setFillColor(30,40,60);doc.rect(0,0,pw,10,'F');
-      doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont('helvetica','bold');
-      doc.text('BASALTE PT — PLANNING OUVERTURES',lm,7);
+      doc.setFillColor(30,40,60);doc.rect(0,0,pw,12,'F');
+      doc.setTextColor(255,255,255);doc.setFontSize(10);doc.setFont('helvetica','bold');
+      doc.text('BASALTE PT — PLANNING OUVERTURES',lm,8);
+      // Mois courant centré
+      doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(180,220,255);
+      doc.text(moLabel,pw/2,8,'center');
+      // Période complète à droite
       const periodLabel=`${pad(sd)}/${pad(sm)}/${sy} → ${pad(ed)}/${pad(em)}/${ey}`;
-      doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(200,210,230);
-      doc.text(periodLabel,pw-rm,7,'right');
-      y=13;
+      doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(180,200,230);
+      doc.text(periodLabel,pw-rm,8,'right');
+      y=15;
 
-      // En-tête colonnes — fond gris clair (économique)
+      // En-tête colonnes
       doc.setFillColor(230,235,245);
       doc.rect(lm,y,pw-lm-rm,6,'F');
       let rx=lm;
@@ -6309,9 +6317,8 @@ function doExportOuvPDF(){
       headers.forEach((h,ci)=>{
         doc.setDrawColor(180,190,210);doc.rect(rx,y,cols[ci],6,'S');
         if(ci>=3&&ci<3+nEmp){
-          // Pastille couleur dans l'en-tête
           const emp=colEmps[ci-3];
-          const c=hexToRgb(emp.color||'#888');
+          const c=hexToRgb(emp.color||'#888888');
           doc.setFillColor(c.r,c.g,c.b);
           doc.roundedRect(rx+2,y+1.5,cols[ci]-4,3,1,1,'F');
           doc.setTextColor(255,255,255);
@@ -6326,89 +6333,97 @@ function doExportOuvPDF(){
       y+=6;
     }
 
-    drawHeader();
-    pagesAdded=1;
+    function drawPageFooter(moLabel){
+      doc.setTextColor(120,130,150);doc.setFontSize(6);doc.setFont('helvetica','normal');
+      doc.text(`Basalte PT V4 · ${new Date().toLocaleDateString('fr-FR')} — ${moLabel}`,pw/2,ph-3,'center');
+    }
 
-    let lastWk=-1;
-    openDays.forEach(({date,dow,ds},ri)=>{
-      // Saut de page si besoin
-      if(y>ph-14){
-        doc.setTextColor(120,130,150);doc.setFontSize(6);
-        doc.text(`Basalte PT V4 · ${new Date().toLocaleDateString('fr-FR')}`,pw/2,ph-3,'center');
-        doc.addPage('a4','landscape');
-        drawHeader();
-      }
+    // Regrouper les jours par mois
+    const daysByMonth=[];
+    let curMo=null;
+    openDays.forEach(d=>{
+      const moKey=d.date.getFullYear()+'-'+d.date.getMonth();
+      if(moKey!==curMo){curMo=moKey;daysByMonth.push([]);}
+      daysByMonth[daysByMonth.length-1].push(d);
+    });
 
-      const ovr=(db.dayOverrides||{})[ds];
-      const defBase=(db.dayDefaults||[]).find(d=>d.dow===dow)||{site:'?',start:'06:30',end:'14:30'};
-      const def={...defBase,...(ovr||{})};
-      const aDs=ovr?.movedTo||ds;
-      const asgns=db.assignments[aDs]||[];
-      const wk=getWeekNumber(date);
+    // Générer une page (ou plusieurs) par mois
+    daysByMonth.forEach((moDays,mi)=>{
+      if(mi>0) doc.addPage('a4','landscape');
+      const moLabel=(MFR[moDays[0].date.getMonth()]+' '+moDays[0].date.getFullYear()).toUpperCase();
+      drawPageHeader(moLabel);
+      let lastWk=-1;
 
-      // Séparateur mois
-      if(date.getMonth()!==lastMo&&ri>0){
-        doc.setFillColor(240,245,255);
-        doc.rect(lm,y,pw-lm-rm,5,'F');
-        doc.setTextColor(60,80,130);doc.setFontSize(6);doc.setFont('helvetica','bold');
-        doc.text((MFR[date.getMonth()]+' '+date.getFullYear()).toUpperCase(),lm+2,y+3.5);
-        y+=5;lastWk=-1;
-      }
-      lastMo=date.getMonth();
+      moDays.forEach(({date,dow,ds},ri)=>{
+        // Saut de page si débordement (mois très long)
+        if(y>ph-14){
+          drawPageFooter(moLabel);
+          doc.addPage('a4','landscape');
+          drawPageHeader(moLabel+' (suite)');
+          lastWk=-1;
+        }
 
-      // Séparateur semaine (ligne fine)
-      if(wk!==lastWk&&lastWk!==-1){
-        doc.setDrawColor(180,190,210);doc.setLineWidth(0.3);
-        doc.line(lm,y,pw-rm,y);
-      }
-      lastWk=wk;
+        const ovr=(db.dayOverrides||{})[ds];
+        const defBase=(db.dayDefaults||[]).find(d=>d.dow===dow)||{site:'?',start:'06:30',end:'14:30'};
+        const def={...defBase,...(ovr||{})};
+        const aDs=ovr?.movedTo||ds;
+        const asgns=db.assignments[aDs]||[];
+        const wk=getWeekNumber(date);
 
-      // Fond de ligne alterné blanc / gris très clair
-      doc.setFillColor(ri%2===0?255:247,ri%2===0?255:249,ri%2===0?255:252);
-      doc.rect(lm,y,pw-lm-rm,rowH,'F');
+        // Séparateur semaine (ligne fine)
+        if(wk!==lastWk&&lastWk!==-1){
+          doc.setDrawColor(200,210,225);doc.setLineWidth(0.3);
+          doc.line(lm,y,pw-rm,y);
+        }
+        lastWk=wk;
 
-      let dispDow=dow;
-      if(ovr?.movedTo){const mp=ovr.movedTo.split('-').map(Number);const md=new Date(mp[0],mp[1]-1,mp[2]);dispDow=md.getDay()-1;if(dispDow<0)dispDow=6;}
-      const displayDate=ovr?.movedTo?
-        ovr.movedTo.split('-').reverse().slice(0,2).join('/'):
-        pad(date.getDate())+'/'+pad(date.getMonth()+1);
+        // Fond de ligne alterné blanc / gris très clair
+        doc.setFillColor(ri%2===0?255:248,ri%2===0?255:249,ri%2===0?255:252);
+        doc.rect(lm,y,pw-lm-rm,rowH,'F');
 
-      let rx=lm;
-      // JOUR
-      doc.setDrawColor(180,190,210);doc.setLineWidth(0.2);doc.rect(rx,y,cols[0],rowH,'S');
-      doc.setTextColor(40,50,70);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
-      doc.text(OUV_DAY_S[dispDow],rx+cols[0]/2,y+5.2,'center');
-      rx+=cols[0];
+        let dispDow=dow;
+        if(ovr?.movedTo){const mp=ovr.movedTo.split('-').map(Number);const md=new Date(mp[0],mp[1]-1,mp[2]);dispDow=md.getDay()-1;if(dispDow<0)dispDow=6;}
+        const displayDate=ovr?.movedTo?
+          ovr.movedTo.split('-').reverse().slice(0,2).join('/'):
+          pad(date.getDate())+'/'+pad(date.getMonth()+1);
 
-      // DATE
-      doc.rect(rx,y,cols[1],rowH,'S');
-      doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(40,50,70);
-      doc.text(displayDate,rx+cols[1]/2,y+5.2,'center');
-      rx+=cols[1];
+        let rx=lm;
+        // JOUR
+        doc.setDrawColor(180,190,210);doc.setLineWidth(0.2);doc.rect(rx,y,cols[0],rowH,'S');
+        doc.setTextColor(40,50,70);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
+        doc.text(OUV_DAY_S[dispDow],rx+cols[0]/2,y+5.2,'center');
+        rx+=cols[0];
 
-      // SITE — pastille colorée
-      doc.rect(rx,y,cols[2],rowH,'S');
-      const sc=hexToRgb(OUV_SITE_COLORS[def.site]||'#fb923c');
-      doc.setFillColor(sc.r,sc.g,sc.b);
-      doc.roundedRect(rx+2,y+1.5,cols[2]-4,rowH-3,1,1,'F');
-      doc.setTextColor(255,255,255);doc.setFontSize(6);doc.setFont('helvetica','bold');
-      doc.text(def.site,rx+cols[2]/2,y+5.2,'center');
-      rx+=cols[2];
+        // DATE
+        doc.rect(rx,y,cols[1],rowH,'S');
+        doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(40,50,70);
+        doc.text(displayDate,rx+cols[1]/2,y+5.2,'center');
+        rx+=cols[1];
 
-      // Colonnes par employé
-      colEmps.forEach((emp,si)=>{
-        const empIds=new Set([emp.id,emp._ouvAgentId].filter(Boolean));
-        const a=asgns.find(x=>x&&empIds.has(x.agentId));
-        doc.setDrawColor(180,190,210);doc.rect(rx,y,cols[3+si],rowH,'S');
-        if(a){
-          const ec=hexToRgb(emp.color||'#888');
-          // Fond coloré léger
-          doc.setFillColor(ec.r,ec.g,ec.b,0.15);
-          doc.rect(rx,y,cols[3+si],rowH,'F');
-          // Pastille + horaires
-          doc.setFillColor(ec.r,ec.g,ec.b);
-          doc.circle(rx+4,y+rowH/2,1.5,'F');
-          doc.setTextColor(ec.r>200&&ec.g>200?40:20,ec.r>200&&ec.g>200?50:30,ec.r>200&&ec.g>200?70:50);
+        // SITE — pastille colorée
+        doc.rect(rx,y,cols[2],rowH,'S');
+        const sc=hexToRgb(OUV_SITE_COLORS[def.site]||'#fb923c');
+        doc.setFillColor(sc.r,sc.g,sc.b);
+        doc.roundedRect(rx+2,y+1.5,cols[2]-4,rowH-3,1,1,'F');
+        doc.setTextColor(255,255,255);doc.setFontSize(6);doc.setFont('helvetica','bold');
+        doc.text(def.site,rx+cols[2]/2,y+5.2,'center');
+        rx+=cols[2];
+
+        // Colonnes par employé
+        colEmps.forEach((emp,si)=>{
+          const empIds=new Set([emp.id,emp._ouvAgentId].filter(Boolean));
+          const a=asgns.find(x=>x&&empIds.has(x.agentId));
+          doc.setDrawColor(180,190,210);doc.rect(rx,y,cols[3+si],rowH,'S');
+          if(a){
+            const ec=hexToRgb(emp.color||'#888888');
+            // Fond coloré clair (sans alpha — calculé manuellement)
+            const lc=lightColor(ec.r,ec.g,ec.b,0.2);
+            doc.setFillColor(lc.r,lc.g,lc.b);
+            doc.rect(rx,y,cols[3+si],rowH,'F');
+            // Pastille + horaires
+            doc.setFillColor(ec.r,ec.g,ec.b);
+            doc.circle(rx+4,y+rowH/2,1.5,'F');
+          doc.setTextColor(40,50,70);
           doc.setFontSize(5.5);doc.setFont('helvetica','bold');
           doc.text(`${a.start||def.start}–${a.end||def.end}`,rx+7,y+5,{maxWidth:cols[3+si]-9});
         }
@@ -6432,9 +6447,10 @@ function doExportOuvPDF(){
       y+=rowH;
     });
 
-    // Pied de page dernière page
-    doc.setTextColor(120,130,150);doc.setFontSize(6);
-    doc.text(`Basalte PT V4 · ${new Date().toLocaleDateString('fr-FR')}`,pw/2,ph-3,'center');
+    // Pied de page dernière page du mois
+    const lastMo=daysByMonth[daysByMonth.length-1];
+    const lastMoLabel=(MFR[lastMo[0].date.getMonth()]+' '+lastMo[0].date.getFullYear()).toUpperCase();
+    drawPageFooter(lastMoLabel);
 
     const fname=`ouvertures_${sy}_${pad(sm)}_${pad(sd)}.pdf`;
     doc.save(fname);
