@@ -6291,7 +6291,7 @@ function doExportOuvPDF(){
     const fixedW=16+24+18; // 58
     const empColW=Math.max(24,Math.min(50,Math.floor((pw-lm-rm-fixedW-20)/Math.max(1,nEmp))));
     const excW=20;
-    const cols=[16,32,18,...Array(nEmp).fill(empColW),excW];
+    const cols=[24,22,14,...Array(nEmp).fill(empColW),excW];
 
     // Helper : mélange couleur avec blanc pour simuler alpha
     function lightColor(r,g,b,alpha){
@@ -6376,10 +6376,10 @@ function doExportOuvPDF(){
         const asgns=db.assignments[aDs]||[];
         const wk=getWeekNumber(date);
 
-        // Séparateur semaine (ligne fine)
+        // Séparateur semaine — ligne épaisse colorée + fond
         if(wk!==lastWk&&lastWk!==-1){
-          doc.setDrawColor(200,210,225);doc.setLineWidth(0.3);
-          doc.line(lm,y,pw-rm,y);
+          doc.setFillColor(210,220,240);
+          doc.rect(lm,y,pw-lm-rm,1.5,'F');
         }
         lastWk=wk;
 
@@ -6387,23 +6387,34 @@ function doExportOuvPDF(){
         doc.setFillColor(ri%2===0?255:248,ri%2===0?255:249,ri%2===0?255:252);
         doc.rect(lm,y,pw-lm-rm,rowH,'F');
 
+        const OUV_DAY_FULL=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+        const MFR_COURT=['jan.','fév.','mar.','avr.','mai','juin','juil.','août','sep.','oct.','nov.','déc.'];
+
         let dispDow=dow;
         if(ovr?.movedTo){const mp=ovr.movedTo.split('-').map(Number);const md=new Date(mp[0],mp[1]-1,mp[2]);dispDow=md.getDay()-1;if(dispDow<0)dispDow=6;}
-        const displayDate=ovr?.movedTo?
-          ovr.movedTo.split('-').reverse().slice(0,2).join('/'):
-          pad(date.getDate())+'/'+pad(date.getMonth()+1);
+
+        // Date lisible : "2 juin" ou "10 juin"
+        let dispDate, dispDay;
+        if(ovr?.movedTo){
+          const mp=ovr.movedTo.split('-').map(Number);
+          dispDate=`${mp[2]} ${MFR_COURT[mp[1]-1]}`;
+          dispDay=OUV_DAY_FULL[dispDow];
+        } else {
+          dispDate=`${date.getDate()} ${MFR_COURT[date.getMonth()]}`;
+          dispDay=OUV_DAY_FULL[dispDow];
+        }
 
         let rx=lm;
-        // JOUR
+        // JOUR — en toutes lettres
         doc.setDrawColor(180,190,210);doc.setLineWidth(0.2);doc.rect(rx,y,cols[0],rowH,'S');
-        doc.setTextColor(40,50,70);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
-        doc.text(OUV_DAY_S[dispDow],rx+cols[0]/2,y+5.2,'center');
+        doc.setTextColor(40,50,70);doc.setFontSize(6.5);doc.setFont('helvetica','bold');
+        doc.text(dispDay,rx+cols[0]/2,y+5.5,'center');
         rx+=cols[0];
 
-        // DATE
+        // DATE — "2 juin"
         doc.rect(rx,y,cols[1],rowH,'S');
-        doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(40,50,70);
-        doc.text(displayDate,rx+cols[1]/2,y+5.2,'center');
+        doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(40,50,70);
+        doc.text(dispDate,rx+cols[1]/2,y+5.5,'center');
         rx+=cols[1];
 
         // SITE — pastille colorée
